@@ -1,0 +1,153 @@
+---
+title: Контакты
+description: Контакты МУП БГО ВО «Борисоглебские теплосети»: аварийно-диспетчерская служба, абонентский отдел, приёмная, бухгалтерия. Адрес, режим работы, личный приём.
+---
+
+<div class="pagehead">
+  <div class="wrap">
+    <h1>Контакты</h1>
+    <p>{{org.address}}</p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="wrap">
+    <div class="emergency" style="margin-bottom:32px">
+      <h2 class="h3-size">Аварийно-диспетчерская служба</h2>
+      <p style="margin-bottom:6px">Отсутствие отопления, прорыв, утечка, отсутствие горячей воды</p>
+      <span class="emergency__phone">{{contacts.dispatcher.value}}</span>
+      <p style="margin-top:8px">Круглосуточно, включая выходные и праздничные дни</p>
+    </div>
+
+    <div class="grid grid--2">
+      <div class="card">
+        <h2 style="font-size:1.25rem">Отделы</h2>
+
+        <div class="contact-card">
+          <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-phone"></use></svg></span>
+          <div class="contact-card__body">
+            <span class="contact-card__label">Приёмная</span>
+            <span class="contact-card__value">{{contacts.reception.value}}</span>
+            <span class="contact-card__note">{{contacts.hours}}</span>
+          </div>
+        </div>
+
+        <div class="contact-card">
+          <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-users"></use></svg></span>
+          <div class="contact-card__body">
+            <span class="contact-card__label">Абонентский отдел</span>
+            <span class="contact-card__value">{{contacts.subscribers.value}}</span>
+            <span class="contact-card__note">Показания приборов учёта, договоры, начисления, задолженность</span>
+          </div>
+        </div>
+
+        <div class="contact-card">
+          <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-ruble"></use></svg></span>
+          <div class="contact-card__body">
+            <span class="contact-card__label">Бухгалтерия</span>
+            <span class="contact-card__value">{{contacts.accounting.value}}</span>
+            <span class="contact-card__note">Сверка расчётов, платёжные документы для организаций</span>
+          </div>
+        </div>
+
+        <div class="contact-card">
+          <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-mail"></use></svg></span>
+          <div class="contact-card__body">
+            <span class="contact-card__label">Электронная почта</span>
+            <span class="contact-card__value">{{contacts.email.value}}</span>
+            <span class="contact-card__note">Для документов по договорам: {{contacts.emailDocs.value}}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size:1.25rem">Адрес и режим работы</h2>
+
+        <div class="contact-card">
+          <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-pin"></use></svg></span>
+          <div class="contact-card__body">
+            <span class="contact-card__label">Адрес</span>
+            <span class="contact-card__value" style="font-size:1.05rem">{{org.address}}</span>
+          </div>
+        </div>
+
+        <div class="contact-card">
+          <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-clock"></use></svg></span>
+          <div class="contact-card__body">
+            <span class="contact-card__label">Режим работы</span>
+            <span class="contact-card__value" style="font-size:1.05rem">{{contacts.hours}}</span>
+            <span class="contact-card__note">Суббота, воскресенье — выходные дни</span>
+          </div>
+        </div>
+
+        <div class="contact-card">
+          <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-calendar"></use></svg></span>
+          <div class="contact-card__body">
+            <span class="contact-card__label">Личный приём граждан</span>
+            <span class="contact-card__value" style="font-size:1.05rem">{{contacts.receptionDays}}</span>
+            <span class="contact-card__note">Ведёт директор {{org.directorShort}}. Предварительная запись по телефону приёмной</span>
+          </div>
+        </div>
+
+        <div class="contact-card" style="border:0">
+          <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-building"></use></svg></span>
+          <div class="contact-card__body">
+            <span class="contact-card__label">Учредитель</span>
+            <span class="contact-card__value" style="font-size:1.05rem">{{org.founder}}</span>
+            <span class="contact-card__note">г. Борисоглебск, ул. Свободы, 207</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section--alt">
+  <div class="wrap">
+    <div class="sec-head"><h2>Куда обращаться по вопросу</h2></div>
+
+    <div class="tablewrap">
+      <table class="table--stack">
+        <thead>
+          <tr>
+            <th scope="col">Вопрос</th>
+            <th scope="col">Куда обращаться</th>
+            <th scope="col">Как быстро</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-th="Вопрос">Нет отопления, нет горячей воды, прорыв, парение</td>
+            <td data-th="Куда">Аварийно-диспетчерская служба, {{contacts.dispatcher.value}}</td>
+            <td data-th="Как быстро">Немедленно, круглосуточно</td>
+          </tr>
+          <tr>
+            <td data-th="Вопрос">Передать показания приборов учёта</td>
+            <td data-th="Куда"><a href="/pokazaniya.html">Форма на сайте</a> или абонентский отдел</td>
+            <td data-th="Как быстро">С {{readings.periodFrom}} по {{readings.periodTo}} число</td>
+          </tr>
+          <tr>
+            <td data-th="Вопрос">Заключить, изменить или расторгнуть договор</td>
+            <td data-th="Куда"><a href="/dogovor.html">Заявка на сайте</a> или абонентский отдел</td>
+            <td data-th="Как быстро">До 3 рабочих дней</td>
+          </tr>
+          <tr>
+            <td data-th="Вопрос">Начисления, перерасчёт, задолженность</td>
+            <td data-th="Куда">Абонентский отдел, {{contacts.subscribers.value}}</td>
+            <td data-th="Как быстро">В день обращения</td>
+          </tr>
+          <tr>
+            <td data-th="Вопрос">Жалоба, заявление, предложение</td>
+            <td data-th="Куда"><a href="/obrashcheniya.html">Форма обращений</a></td>
+            <td data-th="Как быстро">До 30 дней</td>
+          </tr>
+          <tr>
+            <td data-th="Вопрос">Сверка расчётов для организаций</td>
+            <td data-th="Куда">Бухгалтерия, {{contacts.accounting.value}}</td>
+            <td data-th="Как быстро">До 5 рабочих дней</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

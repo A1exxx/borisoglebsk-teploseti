@@ -1,0 +1,276 @@
+---
+title: Теплоснабжение Борисоглебского городского округа
+description: Официальный сайт МУП БГО ВО «Борисоглебские теплосети». Передача показаний приборов учёта, заключение договоров теплоснабжения, обращения граждан, сведения об аварийных и плановых работах, тарифы и раскрытие информации.
+crumbs: no
+---
+
+<section class="hero">
+  <svg class="hero__art" viewBox="0 0 1200 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <g fill="none" stroke="#7fb2dd" stroke-width="2">
+      <path d="M-20 300h300l40-40h180l40 40h340l50-50h330"/>
+      <path d="M-20 350h240l50-50h200l45 45h300l60-60h345"/>
+      <path d="M-20 250h180l60 60h220l35-35h280l55 55h390"/>
+    </g>
+    <g fill="#7fb2dd">
+      <circle cx="280" cy="300" r="6"/><circle cx="500" cy="260" r="6"/><circle cx="840" cy="300" r="6"/>
+      <circle cx="290" cy="300" r="6"/><circle cx="540" cy="345" r="6"/><circle cx="900" cy="290" r="6"/>
+      <circle cx="240" cy="250" r="6"/><circle cx="520" cy="275" r="6"/>
+    </g>
+  </svg>
+
+  <div class="wrap hero__in">
+    <div>
+      <h1>Тепло в дома Борисоглебского городского округа</h1>
+      <p class="hero__lead">Производство, передача и распределение тепловой энергии. Показания приборов учёта, договоры и обращения принимаются через сайт — без личного визита.</p>
+      <div class="hero__actions">
+        <a class="btn btn--primary" href="/pokazaniya.html">
+          <svg class="ico ico--sm" aria-hidden="true"><use href="/img/icons.svg#i-meter"></use></svg>
+          Передать показания
+        </a>
+        <a class="btn btn--ghost" style="background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.45)" href="/otklyucheniya.html">
+          <svg class="ico ico--sm" aria-hidden="true"><use href="/img/icons.svg#i-wrench"></use></svg>
+          Отключения и работы
+        </a>
+      </div>
+    </div>
+
+    <div class="hero__facts">
+      <div class="fact">
+        <span class="fact__num">{{contacts.dispatcher.value}}</span>
+        <span class="fact__label">Аварийно-диспетчерская служба, круглосуточно</span>
+      </div>
+      <div class="fact">
+        <span class="fact__num">с {{readings.periodFrom}} по {{readings.periodTo}} число</span>
+        <span class="fact__label">Период передачи показаний приборов учёта</span>
+      </div>
+      <div class="fact">
+        <span class="fact__num">30 дней</span>
+        <span class="fact__label">Срок рассмотрения письменного обращения (59-ФЗ)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Что можно сделать на сайте</h2>
+    </div>
+
+    <div class="services">
+      <a class="svc svc--accent svc--wide" href="/pokazaniya.html">
+        <span class="svc__ico"><svg class="ico ico--lg" aria-hidden="true"><use href="/img/icons.svg#i-meter"></use></svg></span>
+        <h3>Передать показания приборов учёта</h3>
+        <p>Форма для собственников и нанимателей помещений. Показания принимаются ежемесячно с {{readings.periodFrom}} по {{readings.periodTo}} число. Заявке присваивается номер — по нему можно уточнить статус в абонентском отделе.</p>
+        <span class="svc__cta">Открыть форму
+          <svg class="ico ico--sm" aria-hidden="true"><use href="/img/icons.svg#i-arrow-right"></use></svg>
+        </span>
+      </a>
+
+      <a class="svc" href="/dogovor.html">
+        <span class="svc__ico"><svg class="ico ico--lg" aria-hidden="true"><use href="/img/icons.svg#i-contract"></use></svg></span>
+        <h3>Заключить договор</h3>
+        <p>Заявка и копии документов направляются через сайт. Отдельные перечни для граждан и организаций.</p>
+        <span class="svc__cta">Подать заявку
+          <svg class="ico ico--sm" aria-hidden="true"><use href="/img/icons.svg#i-arrow-right"></use></svg>
+        </span>
+      </a>
+
+      <a class="svc" href="/obrashcheniya.html">
+        <span class="svc__ico"><svg class="ico ico--lg" aria-hidden="true"><use href="/img/icons.svg#i-message"></use></svg></span>
+        <h3>Обращение граждан</h3>
+        <p>Жалоба, заявление или предложение. Регистрируется в день поступления, ответ — в течение 30 дней.</p>
+        <span class="svc__cta">Написать обращение
+          <svg class="ico ico--sm" aria-hidden="true"><use href="/img/icons.svg#i-arrow-right"></use></svg>
+        </span>
+      </a>
+
+      <a class="svc" href="/tarify.html">
+        <span class="svc__ico"><svg class="ico ico--lg" aria-hidden="true"><use href="/img/icons.svg#i-ruble"></use></svg></span>
+        <h3>Тарифы</h3>
+        <p>Действующие тарифы на тепловую энергию и горячую воду, установленные регулирующим органом.</p>
+        <span class="svc__cta">Посмотреть тарифы
+          <svg class="ico ico--sm" aria-hidden="true"><use href="/img/icons.svg#i-arrow-right"></use></svg>
+        </span>
+      </a>
+
+      <a class="svc" href="/raskrytie.html">
+        <span class="svc__ico"><svg class="ico ico--lg" aria-hidden="true"><use href="/img/icons.svg#i-doc"></use></svg></span>
+        <h3>Раскрытие информации</h3>
+        <p>Сведения, публикуемые по стандартам раскрытия информации теплоснабжающими организациями.</p>
+        <span class="svc__cta">Перейти к документам
+          <svg class="ico ico--sm" aria-hidden="true"><use href="/img/icons.svg#i-arrow-right"></use></svg>
+        </span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="section section--alt">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Аварийные и плановые работы</h2>
+      <a class="sec-head__link" href="/otklyucheniya.html">Все работы и сроки</a>
+    </div>
+
+    <div class="tablewrap" data-outages data-limit="5" data-empty-target="#outages-empty" hidden>
+      <table class="table--stack">
+        <caption>Сведения об ограничении и прекращении подачи тепловой энергии</caption>
+        <thead>
+          <tr>
+            <th scope="col">Тип работ</th>
+            <th scope="col">Адреса</th>
+            <th scope="col">Причина</th>
+            <th scope="col">Начало</th>
+            <th scope="col">Плановое окончание</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card card--flat empty" id="outages-empty">
+      <svg class="ico ico--lg" aria-hidden="true"><use href="/img/icons.svg#i-check"></use></svg>
+      <p><strong>Действующих ограничений нет.</strong><br>Теплоснабжение осуществляется в штатном режиме.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap grid grid--sidebar">
+    <div>
+      <div class="sec-head">
+        <h2>Новости и объявления</h2>
+      </div>
+      <ul class="newslist" data-news data-limit="5">
+        <li class="empty"><p>Загрузка…</p></li>
+      </ul>
+    </div>
+
+    <aside>
+      <div class="emergency">
+        <h3>Авария или отсутствие отопления</h3>
+        <p style="margin-bottom:8px">Аварийно-диспетчерская служба</p>
+        <span class="emergency__phone">{{contacts.dispatcher.value}}</span>
+        <p style="margin-top:8px">Круглосуточно, включая выходные и праздничные дни</p>
+      </div>
+
+      <div class="aside-block mt-4">
+        <h3>Абонентский отдел</h3>
+        <div class="contact-card" style="border:0;padding-top:0">
+          <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-phone"></use></svg></span>
+          <div class="contact-card__body">
+            <span class="contact-card__label">Телефон</span>
+            <span class="contact-card__value">{{contacts.subscribers.value}}</span>
+            <span class="contact-card__note">{{contacts.hours}}</span>
+          </div>
+        </div>
+        <div class="contact-card">
+          <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-pin"></use></svg></span>
+          <div class="contact-card__body">
+            <span class="contact-card__label">Адрес</span>
+            <span class="contact-card__value" style="font-size:1rem">{{org.addressShort}}</span>
+          </div>
+        </div>
+        <a class="btn btn--ghost btn--block mt-4" href="/kontakty.html">Все контакты</a>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<section class="section section--alt">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Как передать показания</h2>
+      <a class="sec-head__link" href="/pokazaniya.html">Перейти к форме</a>
+    </div>
+
+    <div class="grid grid--split">
+      <ol class="steps">
+        <li>
+          <h3>Снимите показания с {{readings.periodFrom}} по {{readings.periodTo}} число</h3>
+          <p>Запишите цифры до запятой и после неё так, как они указаны на табло прибора. Если показания не переданы в срок, начисление производится по нормативу или среднемесячному объёму.</p>
+        </li>
+        <li>
+          <h3>Подготовьте номер лицевого счёта</h3>
+          <p>Он указан в верхней части квитанции. Без номера лицевого счёта показания не привязать к помещению.</p>
+        </li>
+        <li>
+          <h3>Заполните форму на сайте</h3>
+          <p>Достаточно лицевого счёта, адреса и самих показаний. Телефон нужен на случай, если специалист заметит расхождение.</p>
+        </li>
+        <li>
+          <h3>Сохраните номер заявки</h3>
+          <p>После отправки на экране появится номер вида ПУ-020926-4471. По нему абонентский отдел найдёт вашу передачу.</p>
+        </li>
+      </ol>
+
+      <div>
+        <div class="panel panel--warm">
+          <h3>Если прибор учёта неисправен</h3>
+          <p>Сообщите об этом в абонентский отдел в течение суток с момента обнаружения. До ремонта или замены прибора расчёт ведётся по среднемесячному потреблению за предыдущий период, а затем — по нормативу.</p>
+          <a class="btn btn--brand" href="/obrashcheniya.html">Сообщить о неисправности</a>
+        </div>
+
+        <div class="panel mt-4">
+          <h3>Проверка и поверка</h3>
+          <p class="mb-0">Прибор учёта допускается к расчётам, если не истёк межповерочный интервал. Дата очередной поверки указана в паспорте прибора и в акте ввода в эксплуатацию.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="grid grid--2">
+      <div class="card">
+        <span class="eyebrow">Предприятие</span>
+        <h2>{{org.fullName}}</h2>
+        <p>Предприятие создано для реализации полномочий органов местного самоуправления по организации теплоснабжения на территории Борисоглебского городского округа. Учредитель и собственник имущества — {{org.founder}}.</p>
+        <dl class="mb-0" style="display:grid;grid-template-columns:auto 1fr;gap:8px 20px;margin:0">
+          <dt class="text-soft">ИНН</dt><dd class="tabnum" style="margin:0">{{org.inn}}</dd>
+          <dt class="text-soft">КПП</dt><dd class="tabnum" style="margin:0">{{org.kpp}}</dd>
+          <dt class="text-soft">ОГРН</dt><dd class="tabnum" style="margin:0">{{org.ogrn}}</dd>
+          <dt class="text-soft">Директор</dt><dd style="margin:0">{{org.director}}</dd>
+        </dl>
+        <a class="btn btn--ghost mt-5" href="/predpriyatie.html">Подробнее о предприятии</a>
+      </div>
+
+      <div class="card">
+        <span class="eyebrow">Документы</span>
+        <h2>Учредительные документы</h2>
+        <ul class="doclist">
+          <li>
+            <a class="doc" href="/docs/ustav-mup-borisoglebskie-teploseti.pdf">
+              <span class="doc__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-pdf"></use></svg></span>
+              <span class="doc__body">
+                <span class="doc__title">Устав предприятия</span>
+                <span class="doc__meta"><span>PDF, 11 страниц</span><span>3,7 МБ</span><span>утверждён 20.07.2026</span></span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="doc" href="/docs/vypiska-egrn-reguisites.pdf">
+              <span class="doc__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-pdf"></use></svg></span>
+              <span class="doc__body">
+                <span class="doc__title">Выписка из ЕГРН № 6503261190</span>
+                <span class="doc__meta"><span>PDF, 1 страница</span><span>267 КБ</span><span>от 30.07.2026</span></span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="doc" href="/docs/list-zapisi-egrul-06-08-2026.pdf">
+              <span class="doc__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-pdf"></use></svg></span>
+              <span class="doc__body">
+                <span class="doc__title">Лист записи ЕГРЮЛ</span>
+                <span class="doc__meta"><span>PDF, 2 страницы</span><span>358 КБ</span><span>от 06.08.2026</span></span>
+              </span>
+            </a>
+          </li>
+        </ul>
+        <a class="btn btn--ghost mt-4" href="/raskrytie.html">Все документы</a>
+      </div>
+    </div>
+  </div>
+</section>

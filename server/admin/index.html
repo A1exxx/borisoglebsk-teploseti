@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Панель управления — МУП «Борисоглебские теплосети»</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<style>
+  .admin-head { background: var(--navy-800); color: #fff; padding-block: var(--s4); }
+  .admin-head h1 { color: #fff; font-size: 1.15rem; margin: 0; }
+  .admin-head__in { display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap; }
+  .admin-head a { color: #cbd9e5; margin-left: auto; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 2px solid var(--c-border); margin-bottom: var(--s5); }
+  .tab { font: inherit; font-weight: 600; background: none; border: 0; border-bottom: 3px solid transparent;
+         padding: 12px 18px; cursor: pointer; color: var(--c-text-soft); min-height: 48px; }
+  .tab[aria-selected="true"] { color: var(--c-brand); border-bottom-color: var(--heat-700); }
+  .tab:hover { background: var(--blue-050); }
+  .rec { border: 1px solid var(--c-border); border-radius: var(--radius-lg); background: #fff; padding: var(--s4) var(--s5); margin-bottom: var(--s3); }
+  .rec__top { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; margin-bottom: var(--s3); }
+  .rec__ticket { font-weight: 700; font-family: var(--font-num); font-variant-numeric: tabular-nums; color: var(--c-brand); }
+  .rec__date { color: var(--c-text-soft); font-size: .88rem; margin-left: auto; }
+  .rec dl { display: grid; grid-template-columns: 190px 1fr; gap: 5px var(--s4); margin: 0; font-size: .95rem; }
+  .rec dt { color: var(--c-text-soft); }
+  .rec dd { margin: 0; }
+  .rec__files { margin-top: var(--s3); display: flex; flex-wrap: wrap; gap: var(--s2); }
+  .rec__files a { display: inline-flex; align-items: center; gap: 6px; font-size: .88rem;
+                  border: 1px solid var(--c-border); border-radius: var(--radius); padding: 5px 10px; text-decoration: none; background: #fbfdff; }
+  .editor-row { display: grid; gap: var(--s3); grid-template-columns: 1fr; border: 1px solid var(--c-border);
+                border-radius: var(--radius-lg); padding: var(--s4); margin-bottom: var(--s3); background: #fff; }
+  @media (min-width: 900px) { .editor-row { grid-template-columns: 160px 1fr 1fr; align-items: start; } }
+  .editor-row .control { min-height: 44px; }
+  .rowbar { display: flex; gap: var(--s2); justify-content: flex-end; margin-top: var(--s2); }
+  .btn--sm { min-height: 40px; padding: 8px 14px; font-size: .92rem; }
+  .btn--danger { background: transparent; color: var(--red-700); border-color: #f0c3c7; }
+  .btn--danger:hover { background: var(--red-050); }
+  .saved { display: none; color: var(--green-700); font-weight: 600; }
+  .saved[data-show="true"] { display: inline; }
+  @media (max-width: 700px) { .rec dl { grid-template-columns: 1fr; } .rec dt { font-weight: 600; margin-top: 6px; } }
+</style>
+</head>
+<body>
+
+<div class="admin-head">
+  <div class="wrap admin-head__in">
+    <h1>Панель управления сайтом</h1>
+    <a href="/">Открыть сайт</a>
+  </div>
+</div>
+
+<main class="section" id="main">
+  <div class="wrap">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-panel="readings"  aria-selected="true">Показания</button>
+      <button class="tab" role="tab" data-panel="appeals"   aria-selected="false">Обращения</button>
+      <button class="tab" role="tab" data-panel="contracts" aria-selected="false">Заявки на договор</button>
+      <button class="tab" role="tab" data-panel="content"   aria-selected="false">Отключения и новости</button>
+    </div>
+
+    <section id="panel-readings" data-panel-body>
+      <div class="sec-head">
+        <h2>Показания приборов учёта</h2>
+        <a class="btn btn--ghost btn--sm" href="/api/admin/export/readings.csv">Выгрузить в CSV</a>
+      </div>
+      <div data-list="readings"><p class="text-soft">Загрузка…</p></div>
+    </section>
+
+    <section id="panel-appeals" data-panel-body hidden>
+      <div class="sec-head">
+        <h2>Обращения граждан</h2>
+        <a class="btn btn--ghost btn--sm" href="/api/admin/export/appeals.csv">Выгрузить в CSV</a>
+      </div>
+      <div data-list="appeals"><p class="text-soft">Загрузка…</p></div>
+    </section>
+
+    <section id="panel-contracts" data-panel-body hidden>
+      <div class="sec-head">
+        <h2>Заявки на заключение договора</h2>
+        <a class="btn btn--ghost btn--sm" href="/api/admin/export/contracts.csv">Выгрузить в CSV</a>
+      </div>
+      <div data-list="contracts"><p class="text-soft">Загрузка…</p></div>
+    </section>
+
+    <section id="panel-content" data-panel-body hidden>
+      <div class="sec-head">
+        <h2>Отключения и новости</h2>
+        <span>
+          <span class="saved" id="saved-note">Сохранено</span>
+          <button class="btn btn--primary btn--sm" id="save-content" type="button">Сохранить и опубликовать</button>
+        </span>
+      </div>
+
+      <div class="card" style="margin-bottom:24px">
+        <h3>Объявление в шапке сайта</h3>
+        <p class="hint">Красная или жёлтая полоса на всех страницах. Оставьте текст пустым, чтобы убрать её.</p>
+        <div class="field">
+          <label for="ann-text">Текст объявления</label>
+          <input class="control" id="ann-text" maxlength="400" placeholder="Например: 15 сентября с 9:00 до 17:00 отключение ГВС по ул. Свободы">
+        </div>
+        <div class="field-row field-row--2">
+          <div class="field">
+            <label for="ann-level">Важность</label>
+            <select class="control" id="ann-level">
+              <option value="info">Обычное (синее)</option>
+              <option value="warn">Предупреждение (жёлтое)</option>
+              <option value="danger">Срочное (красное)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="ann-link">Ссылка «Подробнее» (необязательно)</label>
+            <input class="control" id="ann-link" placeholder="/otklyucheniya.html">
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:24px">
+        <div class="sec-head">
+          <h3 style="margin:0">Отключения и работы</h3>
+          <button class="btn btn--ghost btn--sm" type="button" id="add-outage">Добавить запись</button>
+        </div>
+        <div id="outages-editor"></div>
+      </div>
+
+      <div class="card">
+        <div class="sec-head">
+          <h3 style="margin:0">Новости и объявления</h3>
+          <button class="btn btn--ghost btn--sm" type="button" id="add-news">Добавить новость</button>
+        </div>
+        <div id="news-editor"></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var STATUS = { new: 'Новая', work: 'В работе', done: 'Обработана' };
+  var TYPES = { emergency: 'Аварийная', planned: 'Плановая', hydraulic: 'Гидравлические испытания', season: 'Отопительный сезон' };
+
+  var LABELS = {
+    account: 'Лицевой счёт', fio: 'ФИО', address: 'Адрес', meterNumber: 'Номер прибора',
+    valueHeat: 'Тепловая энергия, Гкал', valueWater: 'Горячая вода, м³', phone: 'Телефон',
+    email: 'Почта', comment: 'Примечание', topic: 'Тема', message: 'Текст обращения',
+    replyBy: 'Способ ответа', postAddress: 'Почтовый адрес', applicantType: 'Тип заявителя',
+    purpose: 'Что требуется', orgName: 'Организация', inn: 'ИНН', objectAddress: 'Адрес объекта'
+  };
+  var ORDER = ['account','fio','orgName','inn','applicantType','purpose','address','objectAddress',
+               'meterNumber','valueHeat','valueWater','topic','message','replyBy','postAddress',
+               'phone','email','comment'];
+
+  function esc(s) { return String(s == null ? '' : s); }
+
+  function fmt(iso) {
+    var d = new Date(iso);
+    return isNaN(d) ? iso : d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  /* --- Вкладки --- */
+  document.querySelectorAll('.tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (t) { t.setAttribute('aria-selected', String(t === tab)); });
+      document.querySelectorAll('[data-panel-body]').forEach(function (p) {
+        p.hidden = p.id !== 'panel-' + tab.dataset.panel;
+      });
+    });
+  });
+
+  /* --- Заявки --- */
+  function renderRecords(kind, items) {
+    var box = document.querySelector('[data-list="' + kind + '"]');
+    box.innerHTML = '';
+    if (!items.length) {
+      box.innerHTML = '<div class="empty"><p>Записей пока нет.</p></div>';
+      return;
+    }
+    items.forEach(function (r) {
+      var card = document.createElement('div');
+      card.className = 'rec';
+
+      var top = document.createElement('div');
+      top.className = 'rec__top';
+
+      var ticket = document.createElement('span');
+      ticket.className = 'rec__ticket';
+      ticket.textContent = r.ticket;
+
+      var badge = document.createElement('span');
+      badge.className = 'badge ' + (r.status === 'done' ? 'badge--ok' : r.status === 'work' ? 'badge--warn' : 'badge--info');
+      badge.textContent = STATUS[r.status] || r.status;
+
+      var sel = document.createElement('select');
+      sel.className = 'control';
+      sel.style.cssText = 'width:auto;min-height:38px;padding:4px 30px 4px 10px;font-size:.9rem';
+      Object.keys(STATUS).forEach(function (k) {
+        var o = document.createElement('option');
+        o.value = k; o.textContent = STATUS[k]; o.selected = (r.status || 'new') === k;
+        sel.appendChild(o);
+      });
+      sel.addEventListener('change', function () {
+        fetch('/api/admin/status', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: kind, ticket: r.ticket, status: sel.value })
+        }).then(function () {
+          badge.className = 'badge ' + (sel.value === 'done' ? 'badge--ok' : sel.value === 'work' ? 'badge--warn' : 'badge--info');
+          badge.textContent = STATUS[sel.value];
+        });
+      });
+
+      var date = document.createElement('span');
+      date.className = 'rec__date';
+      date.textContent = fmt(r.createdAt);
+
+      top.append(ticket, badge, sel, date);
+      card.appendChild(top);
+
+      var dl = document.createElement('dl');
+      ORDER.forEach(function (key) {
+        if (!r[key]) return;
+        var dt = document.createElement('dt'); dt.textContent = LABELS[key] || key;
+        var dd = document.createElement('dd'); dd.textContent = esc(r[key]);
+        dl.append(dt, dd);
+      });
+      card.appendChild(dl);
+
+      if (r.files && r.files.length) {
+        var files = document.createElement('div');
+        files.className = 'rec__files';
+        r.files.forEach(function (f) {
+          var a = document.createElement('a');
+          a.href = '/api/admin/file/' + f.stored.split('/').map(encodeURIComponent).join('/');
+          a.target = '_blank'; a.rel = 'noopener';
+          a.textContent = f.name + ' · ' + Math.round(f.size / 1024) + ' КБ';
+          files.appendChild(a);
+        });
+        card.appendChild(files);
+      }
+
+      box.appendChild(card);
+    });
+  }
+
+  ['readings', 'appeals', 'contracts'].forEach(function (kind) {
+    fetch('/api/admin/records/' + kind)
+      .then(function (r) { return r.json(); })
+      .then(function (d) { renderRecords(kind, d.items || []); })
+      .catch(function () {
+        document.querySelector('[data-list="' + kind + '"]').innerHTML = '<p class="text-soft">Не удалось загрузить.</p>';
+      });
+  });
+
+  /* --- Редактор контента --- */
+  var content = { announcement: null, outages: [], news: [] };
+
+  function outageRow(o) {
+    var row = document.createElement('div');
+    row.className = 'editor-row';
+    row.innerHTML =
+      '<div class="field" style="margin:0"><label>Тип</label>' +
+        '<select class="control" data-f="type">' +
+          Object.keys(TYPES).map(function (k) {
+            return '<option value="' + k + '"' + (o.type === k ? ' selected' : '') + '>' + TYPES[k] + '</option>';
+          }).join('') +
+        '</select>' +
+        '<label style="margin-top:10px">Состояние</label>' +
+        '<select class="control" data-f="status">' +
+          '<option value="active"' + (o.status !== 'done' ? ' selected' : '') + '>Действует</option>' +
+          '<option value="done"' + (o.status === 'done' ? ' selected' : '') + '>Завершено</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="field" style="margin:0"><label>Адреса</label>' +
+        '<textarea class="control" data-f="addresses" rows="3" style="min-height:90px" placeholder="ул. Свободы, д. 12, 14, 16; ул. Матросовская, д. 117"></textarea>' +
+        '<label style="margin-top:10px">Причина</label>' +
+        '<input class="control" data-f="reason" placeholder="Замена участка трубопровода">' +
+      '</div>' +
+      '<div class="field" style="margin:0"><label>Начало</label>' +
+        '<input class="control" type="datetime-local" data-f="start">' +
+        '<label style="margin-top:10px">Плановое окончание</label>' +
+        '<input class="control" type="datetime-local" data-f="end">' +
+        '<div class="rowbar"><button class="btn btn--ghost btn--sm btn--danger" type="button" data-del>Удалить</button></div>' +
+      '</div>';
+    row.querySelector('[data-f="addresses"]').value = o.addresses || '';
+    row.querySelector('[data-f="reason"]').value = o.reason || '';
+    row.querySelector('[data-f="start"]').value = (o.start || '').slice(0, 16);
+    row.querySelector('[data-f="end"]').value = (o.end || '').slice(0, 16);
+    row.querySelector('[data-del]').addEventListener('click', function () { row.remove(); });
+    return row;
+  }
+
+  function newsRow(n) {
+    var row = document.createElement('div');
+    row.className = 'editor-row';
+    row.innerHTML =
+      '<div class="field" style="margin:0"><label>Дата</label>' +
+        '<input class="control" type="date" data-f="date">' +
+        '<label class="check" style="margin-top:14px;margin-bottom:0">' +
+          '<input type="checkbox" data-f="pinned"> <span>Закрепить как важное</span></label>' +
+      '</div>' +
+      '<div class="field" style="margin:0"><label>Заголовок</label>' +
+        '<input class="control" data-f="title" maxlength="200">' +
+      '</div>' +
+      '<div class="field" style="margin:0"><label>Текст</label>' +
+        '<textarea class="control" data-f="text" rows="4" style="min-height:110px"></textarea>' +
+        '<div class="rowbar"><button class="btn btn--ghost btn--sm btn--danger" type="button" data-del>Удалить</button></div>' +
+      '</div>';
+    row.querySelector('[data-f="date"]').value = n.date || new Date().toISOString().slice(0, 10);
+    row.querySelector('[data-f="title"]').value = n.title || '';
+    row.querySelector('[data-f="text"]').value = n.text || '';
+    row.querySelector('[data-f="pinned"]').checked = Boolean(n.pinned);
+    row.querySelector('[data-del]').addEventListener('click', function () { row.remove(); });
+    return row;
+  }
+
+  fetch('/api/admin/content').then(function (r) { return r.json(); }).then(function (d) {
+    content = d;
+    if (d.announcement) {
+      document.getElementById('ann-text').value = d.announcement.text || '';
+      document.getElementById('ann-level').value = d.announcement.level || 'info';
+      document.getElementById('ann-link').value = d.announcement.link || '';
+    }
+    var oe = document.getElementById('outages-editor');
+    (d.outages || []).forEach(function (o) { oe.appendChild(outageRow(o)); });
+    var ne = document.getElementById('news-editor');
+    (d.news || []).forEach(function (n) { ne.appendChild(newsRow(n)); });
+  });
+
+  document.getElementById('add-outage').addEventListener('click', function () {
+    document.getElementById('outages-editor').prepend(outageRow({ type: 'planned', status: 'active' }));
+  });
+  document.getElementById('add-news').addEventListener('click', function () {
+    document.getElementById('news-editor').prepend(newsRow({}));
+  });
+
+  document.getElementById('save-content').addEventListener('click', function () {
+    var btn = this;
+    var payload = {
+      announcement: {
+        text: document.getElementById('ann-text').value.trim(),
+        level: document.getElementById('ann-level').value,
+        link: document.getElementById('ann-link').value.trim()
+      },
+      outages: [].map.call(document.querySelectorAll('#outages-editor .editor-row'), function (row, i) {
+        var g = function (f) { var el = row.querySelector('[data-f="' + f + '"]'); return el ? el.value : ''; };
+        return { id: 'o' + Date.now() + i, type: g('type'), status: g('status'),
+                 addresses: g('addresses'), reason: g('reason'), start: g('start'), end: g('end') };
+      }),
+      news: [].map.call(document.querySelectorAll('#news-editor .editor-row'), function (row, i) {
+        var g = function (f) { var el = row.querySelector('[data-f="' + f + '"]'); return el ? el.value : ''; };
+        return { id: 'n' + Date.now() + i, date: g('date'), title: g('title'), text: g('text'),
+                 pinned: row.querySelector('[data-f="pinned"]').checked };
+      })
+    };
+
+    btn.disabled = true;
+    fetch('/api/admin/content', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    }).then(function (r) { return r.json(); }).then(function () {
+      var note = document.getElementById('saved-note');
+      note.setAttribute('data-show', 'true');
+      setTimeout(function () { note.setAttribute('data-show', 'false'); }, 2500);
+    }).finally(function () { btn.disabled = false; });
+  });
+})();
+</script>
+</body>
+</html>

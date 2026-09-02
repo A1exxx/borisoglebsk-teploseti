@@ -1,0 +1,44 @@
+---
+title: Заявка отправлена
+description: Подтверждение отправки заявки в МУП БГО ВО «Борисоглебские теплосети».
+crumbs: Заявка отправлена
+---
+
+<section class="section">
+  <div class="wrap wrap--narrow">
+    <div class="card">
+      <h1 style="color:var(--green-700)">
+        <svg class="ico ico--lg" aria-hidden="true" style="vertical-align:-6px"><use href="/img/icons.svg#i-check"></use></svg>
+        Заявка отправлена
+      </h1>
+
+      <p id="ticket-line" hidden>Номер вашей заявки: <strong class="tabnum" id="ticket-value" style="font-size:1.3rem"></strong></p>
+      <p id="message-line"></p>
+
+      <p>Запишите или сфотографируйте номер заявки — по нему специалист найдёт ваше обращение. Дополнительное подтверждение на почту не направляется.</p>
+
+      <div class="form-actions">
+        <a class="btn btn--brand" href="/">На главную</a>
+        <a class="btn btn--ghost" href="/kontakty.html">Контакты</a>
+      </div>
+    </div>
+
+    <div class="panel mt-5">
+      <h2 style="font-size:1.1rem">Если возникнет вопрос по заявке</h2>
+      <p class="mb-0">Абонентский отдел: {{contacts.subscribers.value}}, {{contacts.hours}}. Назовите номер заявки — так специалист найдёт её быстрее.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    var params = new URLSearchParams(location.search);
+    var ticket = params.get('ticket');
+    var msg = params.get('msg');
+    if (ticket) {
+      document.getElementById('ticket-value').textContent = ticket;
+      document.getElementById('ticket-line').hidden = false;
+    }
+    document.getElementById('message-line').textContent = msg || 'Заявка принята и передана специалисту.';
+  })();
+</script>

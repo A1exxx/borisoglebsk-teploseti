@@ -1,0 +1,145 @@
+---
+title: Отключения и работы
+description: Сведения об аварийных и плановых работах на тепловых сетях Борисоглебского городского округа: адреса, причины, сроки восстановления теплоснабжения.
+---
+
+<div class="pagehead">
+  <div class="wrap">
+    <h1>Аварийные и плановые работы</h1>
+    <p>Сведения об ограничении и прекращении подачи тепловой энергии и горячей воды. Список обновляется диспетчерской службой.</p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="wrap">
+    <div class="grid grid--sidebar">
+      <div>
+        <div class="field" style="max-width:520px">
+          <label for="outage-search">Поиск по адресу</label>
+          <input class="control" type="search" id="outage-search" data-outage-filter
+                 placeholder="Например: Свободы или Матросовская" autocomplete="off">
+          <span class="hint">Введите название улицы или номер дома</span>
+        </div>
+
+        <div class="tablewrap mt-5" data-outages data-empty-target="#outages-empty" hidden>
+          <table class="table--stack">
+            <caption>Действующие и запланированные работы</caption>
+            <thead>
+              <tr>
+                <th scope="col">Тип работ</th>
+                <th scope="col">Адреса</th>
+                <th scope="col">Причина</th>
+                <th scope="col">Начало</th>
+                <th scope="col">Плановое окончание</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="card card--flat empty" id="outages-empty">
+          <svg class="ico ico--lg" aria-hidden="true"><use href="/img/icons.svg#i-check"></use></svg>
+          <p><strong>Действующих ограничений нет.</strong><br>Теплоснабжение осуществляется в штатном режиме. Если в вашем доме нет отопления или горячей воды — сообщите в диспетчерскую службу.</p>
+        </div>
+
+        <div class="card card--flat empty" id="outages-nomatch" hidden>
+          <svg class="ico ico--lg" aria-hidden="true"><use href="/img/icons.svg#i-info"></use></svg>
+          <p><strong>По этому адресу работ не запланировано.</strong><br>Проверьте написание улицы или очистите поле поиска, чтобы увидеть весь список.</p>
+        </div>
+      </div>
+
+      <aside>
+        <div class="emergency">
+          <h2 class="h3-size">Сообщить об аварии</h2>
+          <p style="margin-bottom:8px">Аварийно-диспетчерская служба</p>
+          <span class="emergency__phone">{{contacts.dispatcher.value}}</span>
+          <p style="margin-top:8px">Круглосуточно, включая выходные и праздничные дни</p>
+        </div>
+
+        <div class="aside-block mt-4">
+          <h2 class="h3-size">Что сообщить диспетчеру</h2>
+          <ul style="padding-left:1.1em">
+            <li>Точный адрес: улица, дом, подъезд, квартира</li>
+            <li>Что произошло: нет отопления, нет горячей воды, прорыв, парение, затопление подвала</li>
+            <li>С какого времени</li>
+            <li>Затронута одна квартира, подъезд или весь дом</li>
+            <li>Контактный телефон</li>
+          </ul>
+          <p class="hint mb-0">Заявка регистрируется в журнале диспетчерской службы, заявителю сообщается её номер.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="section section--alt">
+  <div class="wrap">
+    <div class="sec-head"><h2>Нормативные сроки</h2></div>
+
+    <div class="tablewrap">
+      <table class="table--stack">
+        <caption>Допустимая продолжительность перерыва отопления — приложение № 1 к Правилам предоставления коммунальных услуг (постановление Правительства Российской Федерации от 06.05.2011 № 354)</caption>
+        <thead>
+          <tr>
+            <th scope="col">Условие</th>
+            <th scope="col">Допустимый перерыв</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-th="Условие">Суммарно в течение месяца</td>
+            <td data-th="Допустимый перерыв">не более 24 часов</td>
+          </tr>
+          <tr>
+            <td data-th="Условие">Единовременно при температуре в помещении от +12&nbsp;°C</td>
+            <td data-th="Допустимый перерыв">не более 16 часов</td>
+          </tr>
+          <tr>
+            <td data-th="Условие">Единовременно при температуре в помещении от +10 до +12&nbsp;°C</td>
+            <td data-th="Допустимый перерыв">не более 8 часов</td>
+          </tr>
+          <tr>
+            <td data-th="Условие">Единовременно при температуре в помещении от +8 до +10&nbsp;°C</td>
+            <td data-th="Допустимый перерыв">не более 4 часов</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel panel--tint mt-5">
+      <h3>Температура в жилом помещении</h3>
+      <p class="mb-0">Не ниже +18&nbsp;°C в жилых комнатах, в угловых комнатах — не ниже +20&nbsp;°C. Допустимое снижение ночью (с 00:00 до 05:00) — не более чем на 3&nbsp;°C, днём снижение не допускается. За каждый час превышения допустимой продолжительности перерыва размер платы снижается — основание для перерасчёта устанавливается актом.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="sec-head"><h2>Ежегодные плановые работы</h2></div>
+    <p class="lead">Три вида работ повторяются каждый год. Сроки по каждому объявляются заранее на этой странице.</p>
+
+    <dl class="worklist">
+      <div class="worklist__item">
+        <dt>
+          <svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-drop"></use></svg>
+          Гидравлические испытания
+        </dt>
+        <dd>Проводятся после окончания отопительного периода. Тепловые сети проверяются повышенным давлением, чтобы выявить дефекты до наступления холодов. На время испытаний подача горячей воды прекращается.</dd>
+      </div>
+      <div class="worklist__item">
+        <dt>
+          <svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-wrench"></use></svg>
+          Ремонтная кампания
+        </dt>
+        <dd>Замена участков трубопроводов, запорной арматуры и оборудования котельных в межотопительный период. График работ публикуется заблаговременно.</dd>
+      </div>
+      <div class="worklist__item">
+        <dt>
+          <svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-flame"></use></svg>
+          Пуск отопления
+        </dt>
+        <dd>Отопительный период начинается по постановлению администрации городского округа при среднесуточной температуре наружного воздуха ниже +8&nbsp;°C в течение пяти суток подряд.</dd>
+      </div>
+    </dl>
+  </div>
+</section>

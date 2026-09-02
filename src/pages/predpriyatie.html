@@ -1,0 +1,141 @@
+---
+title: О предприятии
+description: Сведения о МУП БГО ВО «Борисоглебские теплосети»: реквизиты, руководство, виды деятельности, учредительные документы.
+---
+
+<div class="pagehead">
+  <div class="wrap">
+    <h1>О предприятии</h1>
+    <p>{{org.fullName}}</p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="wrap grid grid--sidebar">
+    <div>
+      <h2>Чем занимается предприятие</h2>
+      <p>Предприятие создано для реализации полномочий органов местного самоуправления по организации теплоснабжения на территории Борисоглебского городского округа. Основной предмет деятельности — производство, передача и распределение тепловой энергии.</p>
+      <p>Деятельность относится к сфере естественных монополий и подлежит государственному регулированию в соответствии с Федеральным законом от 17.08.1995 № 147-ФЗ «О естественных монополиях» и Федеральным законом от 27.07.2010 № 190-ФЗ «О теплоснабжении». Тарифы устанавливает уполномоченный орган регулирования, предприятие не определяет их самостоятельно.</p>
+
+      <h2 class="mt-6">Правовое положение</h2>
+      <p>Предприятие является унитарным: имущество принадлежит ему на праве хозяйственного ведения и не может быть распределено по вкладам. Собственник имущества — муниципальное образование Борисоглебский городской округ Воронежской области; полномочия собственника осуществляет {{org.founder}}.</p>
+      <p>Устав утверждён постановлением администрации Борисоглебского городского округа Воронежской области от 20.07.2026 № 2063. Уставный фонд предприятия — {{org.charterFund}}.</p>
+      <p>Директор назначается распоряжением администрации городского округа и действует как единоличный исполнительный орган. Предприятие отвечает по своим обязательствам всем принадлежащим ему имуществом и не отвечает по обязательствам собственника.</p>
+
+      <h2 class="mt-6">Виды деятельности</h2>
+      <div class="tablewrap">
+        <table class="table--stack">
+          <thead>
+            <tr>
+              <th scope="col">Код ОКВЭД 2</th>
+              <th scope="col">Наименование вида деятельности</th>
+              <th scope="col">Тип</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-th="Код" class="tabnum">35.30.14</td>
+              <td data-th="Наименование">Производство пара и горячей воды (тепловой энергии) котельными</td>
+              <td data-th="Тип">Основной</td>
+            </tr>
+            <tr>
+              <td data-th="Код" class="tabnum">35.30.2</td>
+              <td data-th="Наименование">Передача пара и горячей воды (тепловой энергии)</td>
+              <td data-th="Тип">Дополнительный</td>
+            </tr>
+            <tr>
+              <td data-th="Код" class="tabnum">35.30.3</td>
+              <td data-th="Наименование">Распределение пара и горячей воды (тепловой энергии)</td>
+              <td data-th="Тип">Дополнительный</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="mt-6">Учредительные документы</h2>
+      <ul class="doclist">
+        <li>
+          <a class="doc" href="/docs/ustav-mup-borisoglebskie-teploseti.pdf">
+            <span class="doc__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-pdf"></use></svg></span>
+            <span class="doc__body">
+              <span class="doc__title">Устав предприятия</span>
+              <span class="doc__meta"><span>PDF · 11 страниц · 3,7 МБ</span><span>утверждён 20.07.2026</span></span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="doc" href="/docs/vypiska-egrn-reguisites.pdf">
+            <span class="doc__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-pdf"></use></svg></span>
+            <span class="doc__body">
+              <span class="doc__title">Выписка из ЕГРН № 6503261190 от 30.07.2026</span>
+              <span class="doc__meta"><span>PDF · 1 страница · 267 КБ</span></span>
+            </span>
+          </a>
+        </li>
+      </ul>
+      <a class="btn btn--ghost mt-4" href="/raskrytie.html">Все документы и раскрытие информации</a>
+    </div>
+
+    <aside>
+      <div class="aside-block">
+        <h3>Реквизиты</h3>
+        <dl style="display:grid;gap:12px;margin:0">
+          <div>
+            <dt class="contact-card__label">Полное наименование</dt>
+            <dd style="margin:0">{{org.fullName}}</dd>
+          </div>
+          <div>
+            <dt class="contact-card__label">Сокращённое наименование</dt>
+            <dd style="margin:0">{{org.legalShort}}</dd>
+          </div>
+          <div>
+            <dt class="contact-card__label">ИНН</dt>
+            <dd class="tabnum" style="margin:0">{{org.inn}}</dd>
+          </div>
+          <div>
+            <dt class="contact-card__label">КПП</dt>
+            <dd class="tabnum" style="margin:0">{{org.kpp}}</dd>
+          </div>
+          <div>
+            <dt class="contact-card__label">ОГРН</dt>
+            <dd class="tabnum" style="margin:0">{{org.ogrn}}</dd>
+          </div>
+          <div>
+            <dt class="contact-card__label">Дата регистрации</dt>
+            <dd style="margin:0">{{org.ogrnDate}}</dd>
+          </div>
+          <div>
+            <dt class="contact-card__label">Юридический адрес</dt>
+            <dd style="margin:0">{{org.address}}</dd>
+          </div>
+          <div>
+            <dt class="contact-card__label">Налоговый орган</dt>
+            <dd style="margin:0">{{org.taxOffice}}</dd>
+          </div>
+          <div>
+            <dt class="contact-card__label">Банковские реквизиты</dt>
+            <dd style="margin:0">{{contacts.accounting.value}}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="aside-block">
+        <h3>Руководство</h3>
+        <div class="contact-card" style="border:0;padding:0">
+          <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-users"></use></svg></span>
+          <div class="contact-card__body">
+            <span class="contact-card__label">Директор</span>
+            <span class="contact-card__value" style="font-size:1.05rem">{{org.director}}</span>
+            <span class="contact-card__note">Приём граждан: {{contacts.receptionDays}}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="aside-block">
+        <h3>Учредитель</h3>
+        <p>{{org.founder}}</p>
+        <p class="hint mb-0">ИНН {{org.founderInn}} · ОГРН {{org.founderOgrn}}</p>
+      </div>
+    </aside>
+  </div>
+</section>

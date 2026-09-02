@@ -1,0 +1,210 @@
+---
+title: Передача показаний приборов учёта
+description: Онлайн-форма передачи показаний приборов учёта тепловой энергии и горячей воды в МУП БГО ВО «Борисоглебские теплосети». Показания принимаются ежемесячно с 20 по 25 число.
+---
+
+<div class="pagehead">
+  <div class="wrap">
+    <h1>Передача показаний приборов учёта</h1>
+    <p>Заполните форму — показания поступят в абонентский отдел. Личный визит не требуется.</p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="wrap grid grid--sidebar">
+    <div>
+      <div class="panel panel--tint" style="margin-bottom:32px">
+        <h2 style="font-size:1.15rem;margin-bottom:8px">Показания принимаются с {{readings.periodFrom}} по {{readings.periodTo}} число каждого месяца</h2>
+        <p class="mb-0">Показания, переданные после {{readings.periodTo}} числа, учитываются в следующем расчётном периоде. Если показания не переданы, объём потребления определяется расчётным способом — по среднемесячному потреблению, а после трёх месяцев — по нормативу.</p>
+      </div>
+
+      <div class="formnote" data-show="false"></div>
+
+      <div class="card" id="reading-success" hidden>
+        <h2 style="color:var(--green-700)">
+          <svg class="ico ico--lg" aria-hidden="true" style="vertical-align:-6px"><use href="/img/icons.svg#i-check"></use></svg>
+          Показания приняты
+        </h2>
+        <p>Номер вашей заявки: <strong class="tabnum" data-ticket style="font-size:1.3rem"></strong></p>
+        <p>Запишите или сфотографируйте номер. По нему абонентский отдел найдёт переданные показания. Дополнительное подтверждение не направляется.</p>
+        <div class="form-actions">
+          <a class="btn btn--brand" href="/">На главную</a>
+          <a class="btn btn--ghost" href="/pokazaniya.html">Передать ещё показания</a>
+        </div>
+      </div>
+
+      <form class="form" id="form" method="post" action="/api/readings" data-ajax data-success-target="#reading-success" novalidate>
+        <p class="hint" style="margin-bottom:24px">Поля со звёздочкой <span class="req">*</span> обязательны.</p>
+
+        <fieldset>
+          <legend>Помещение</legend>
+
+          <div class="field">
+            <label for="account">Номер лицевого счёта <span class="req" aria-hidden="true">*</span></label>
+            <input class="control" type="text" id="account" name="account" required inputmode="numeric"
+                   autocomplete="off" data-msg-required="Без номера лицевого счёта показания не привязать к помещению">
+            <span class="hint">Указан в верхней части квитанции на оплату</span>
+            <span class="err" role="alert"></span>
+          </div>
+
+          <div class="field">
+            <label for="address">Адрес помещения <span class="req" aria-hidden="true">*</span></label>
+            <input class="control" type="text" id="address" name="address" required autocomplete="street-address"
+                   placeholder="ул. Свободы, д. 12, кв. 45">
+            <span class="err" role="alert"></span>
+          </div>
+
+          <div class="field">
+            <label for="fio">Фамилия, имя, отчество</label>
+            <input class="control" type="text" id="fio" name="fio" autocomplete="name">
+            <span class="hint">Как указано в квитанции. Необязательно, но помогает при расхождениях</span>
+            <span class="err" role="alert"></span>
+          </div>
+
+          <div class="field">
+            <label for="meterNumber">Заводской номер прибора учёта</label>
+            <input class="control" type="text" id="meterNumber" name="meterNumber" autocomplete="off">
+            <span class="hint">Указан на корпусе прибора и в акте ввода в эксплуатацию</span>
+            <span class="err" role="alert"></span>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Показания</legend>
+          <span class="hint">Заполните то, что относится к вашему прибору учёта. Достаточно одного значения.</span>
+
+          <div class="field-row field-row--2">
+            <div class="field">
+              <label for="valueHeat">Тепловая энергия, Гкал</label>
+              <input class="control" type="text" id="valueHeat" name="valueHeat" inputmode="decimal"
+                     data-validate="reading" placeholder="12,345" autocomplete="off">
+              <span class="hint">Цифры с табло прибора, вместе с дробной частью</span>
+              <span class="err" role="alert"></span>
+            </div>
+
+            <div class="field">
+              <label for="valueWater">Горячая вода, м³</label>
+              <input class="control" type="text" id="valueWater" name="valueWater" inputmode="decimal"
+                     data-validate="reading" placeholder="248,600" autocomplete="off">
+              <span class="hint">Показание счётчика горячего водоснабжения</span>
+              <span class="err" role="alert"></span>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Обратная связь</legend>
+
+          <div class="field-row field-row--2">
+            <div class="field">
+              <label for="phone">Телефон <span class="req" aria-hidden="true">*</span></label>
+              <input class="control" type="tel" id="phone" name="phone" required data-validate="phone"
+                     autocomplete="tel" placeholder="+7 (900) 000-00-00">
+              <span class="hint">Понадобится, если показания вызовут вопросы</span>
+              <span class="err" role="alert"></span>
+            </div>
+
+            <div class="field">
+              <label for="email">Электронная почта</label>
+              <input class="control" type="email" id="email" name="email" data-validate="email" autocomplete="email">
+              <span class="err" role="alert"></span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="comment">Примечание</label>
+            <textarea class="control" id="comment" name="comment" rows="4"
+                      style="min-height:110px" placeholder="Например: прибор учёта заменён 15 августа, показания начаты с нуля"></textarea>
+            <span class="err" role="alert"></span>
+          </div>
+        </fieldset>
+
+        <div class="check">
+          <input type="checkbox" id="consent" name="consent" required
+                 data-msg-required="Без согласия на обработку персональных данных заявка не принимается">
+          <label for="consent">
+            Я даю согласие на обработку моих персональных данных в объёме, необходимом для начисления платы
+            за тепловую энергию, на условиях
+            <a href="/politika.html">политики обработки персональных данных</a>. <span class="req" aria-hidden="true">*</span>
+            <span class="err" role="alert"></span>
+          </label>
+        </div>
+
+        <div class="visually-hidden" aria-hidden="true">
+          <label for="website">Не заполняйте это поле</label>
+          <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn--primary" type="submit">
+            <svg class="ico ico--sm" aria-hidden="true"><use href="/img/icons.svg#i-meter"></use></svg>
+            Передать показания
+          </button>
+          <span class="hint" style="margin:0">Заявке присваивается номер сразу после отправки</span>
+        </div>
+      </form>
+    </div>
+
+    <aside>
+      <div class="aside-block">
+        <h3>Другие способы передать показания</h3>
+        <div class="contact-card" style="padding-top:0">
+          <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-phone"></use></svg></span>
+          <div class="contact-card__body">
+            <span class="contact-card__label">По телефону</span>
+            <span class="contact-card__value" style="font-size:1.05rem">{{contacts.subscribers.value}}</span>
+            <span class="contact-card__note">{{contacts.hours}}</span>
+          </div>
+        </div>
+        <div class="contact-card">
+          <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-mail"></use></svg></span>
+          <div class="contact-card__body">
+            <span class="contact-card__label">Электронной почтой</span>
+            <span class="contact-card__value" style="font-size:1.05rem">{{contacts.email.value}}</span>
+            <span class="contact-card__note">Укажите лицевой счёт и адрес</span>
+          </div>
+        </div>
+        <div class="contact-card">
+          <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-building"></use></svg></span>
+          <div class="contact-card__body">
+            <span class="contact-card__label">Лично</span>
+            <span class="contact-card__value" style="font-size:1.05rem">{{org.addressShort}}</span>
+            <span class="contact-card__note">Абонентский отдел, {{contacts.hoursShort}}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="aside-block">
+        <h3>Частые вопросы</h3>
+
+        <details class="acc" style="border:0">
+          <summary style="padding-inline:0">Где найти номер лицевого счёта</summary>
+          <div class="acc__body" style="padding-inline:0">
+            <p class="mb-0">В верхней части квитанции на оплату тепловой энергии, рядом с адресом помещения. Если квитанции нет — уточните в абонентском отделе, назвав адрес.</p>
+          </div>
+        </details>
+
+        <details class="acc" style="border:0">
+          <summary style="padding-inline:0">Сколько цифр передавать</summary>
+          <div class="acc__body" style="padding-inline:0">
+            <p class="mb-0">Все, что видны на табло, включая дробную часть после запятой. Округлять самостоятельно не нужно — расчёт выполняется по фактическим значениям.</p>
+          </div>
+        </details>
+
+        <details class="acc" style="border:0">
+          <summary style="padding-inline:0">Что если показания меньше прошлых</summary>
+          <div class="acc__body" style="padding-inline:0">
+            <p class="mb-0">Так бывает после замены прибора учёта или сброса счётчика. Укажите это в примечании — специалист проверит и скорректирует расчёт.</p>
+          </div>
+        </details>
+
+        <details class="acc" style="border:0">
+          <summary style="padding-inline:0">Я передал показания с ошибкой</summary>
+          <div class="acc__body" style="padding-inline:0">
+            <p class="mb-0">Отправьте форму повторно с верными данными и укажите в примечании номер ошибочной заявки. В расчёт возьмут последнюю передачу.</p>
+          </div>
+        </details>
+      </div>
+    </aside>
+  </div>
+</section>
