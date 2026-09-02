@@ -646,3 +646,21 @@ html[data-vision="on"] .footer h2 { color: var(--c-text); }
 
 /* Заголовки строк в таблицах реквизитов */
 tbody th[scope="row"] { font-weight: 700; color: var(--c-text); background: transparent; text-transform: none; letter-spacing: 0; font-size: .95rem; border-bottom: 1px solid var(--line-soft); }
+
+/* ---------- 29. Логотип предприятия ---------- */
+.brand__mark {
+  width: 46px; height: 46px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+@media (min-width: 768px) { .brand__mark { width: 54px; height: 54px; } }
+
+.footer__mark {
+  width: 52px; height: 52px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+/* На тёмном фоне подвала логотип держится сам: синяя половина светлее фона.
+   Лёгкий ореол отделяет его от полотна, не превращая в белую плашку. */
+.footer__mark { filter: drop-shadow(0 0 3px rgba(255, 255, 255, .28)); }
+html[data-vision="on"] .footer__mark { filter: grayscale(1); }
