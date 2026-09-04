@@ -36,7 +36,7 @@ crumbs: no
 
     <div class="hero__facts">
       <div class="fact">
-        <span class="fact__num">{{contacts.dispatcher.value}}</span>
+        <span class="fact__num">{{@contacts.dispatcher}}</span>
         <span class="fact__label">Аварийно-диспетчерская служба, круглосуточно</span>
       </div>
       <div class="fact">
@@ -151,7 +151,7 @@ crumbs: no
       <div class="emergency">
         <h3>Авария или отсутствие отопления</h3>
         <p style="margin-bottom:8px">Аварийно-диспетчерская служба</p>
-        <span class="emergency__phone">{{contacts.dispatcher.value}}</span>
+        <span class="emergency__phone">{{@contacts.dispatcher}}</span>
         <p style="margin-top:8px">Круглосуточно, включая выходные и праздничные дни</p>
       </div>
 
@@ -161,7 +161,7 @@ crumbs: no
           <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-phone"></use></svg></span>
           <div class="contact-card__body">
             <span class="contact-card__label">Телефон</span>
-            <span class="contact-card__value">{{contacts.subscribers.value}}</span>
+            <span class="contact-card__value">{{@contacts.subscribers}}</span>
             <span class="contact-card__note">{{contacts.hours}}</span>
           </div>
         </div>

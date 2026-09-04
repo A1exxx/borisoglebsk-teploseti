@@ -15,7 +15,7 @@ description: Контакты МУП БГО ВО «Борисоглебские 
     <div class="emergency" style="margin-bottom:32px">
       <h2 class="h3-size">Аварийно-диспетчерская служба</h2>
       <p style="margin-bottom:6px">Отсутствие отопления, прорыв, утечка, отсутствие горячей воды</p>
-      <span class="emergency__phone">{{contacts.dispatcher.value}}</span>
+      <span class="emergency__phone">{{@contacts.dispatcher}}</span>
       <p style="margin-top:8px">Круглосуточно, включая выходные и праздничные дни</p>
     </div>
 
@@ -27,7 +27,7 @@ description: Контакты МУП БГО ВО «Борисоглебские 
           <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-phone"></use></svg></span>
           <div class="contact-card__body">
             <span class="contact-card__label">Приёмная</span>
-            <span class="contact-card__value">{{contacts.reception.value}}</span>
+            <span class="contact-card__value">{{@contacts.reception}}</span>
             <span class="contact-card__note">{{contacts.hours}}</span>
           </div>
         </div>
@@ -36,7 +36,7 @@ description: Контакты МУП БГО ВО «Борисоглебские 
           <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-users"></use></svg></span>
           <div class="contact-card__body">
             <span class="contact-card__label">Абонентский отдел</span>
-            <span class="contact-card__value">{{contacts.subscribers.value}}</span>
+            <span class="contact-card__value">{{@contacts.subscribers}}</span>
             <span class="contact-card__note">Показания приборов учёта, договоры, начисления, задолженность</span>
           </div>
         </div>
@@ -45,8 +45,8 @@ description: Контакты МУП БГО ВО «Борисоглебские 
           <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-ruble"></use></svg></span>
           <div class="contact-card__body">
             <span class="contact-card__label">Бухгалтерия</span>
-            <span class="contact-card__value">{{contacts.accounting.value}}</span>
-            <span class="contact-card__note">Сверка расчётов, платёжные документы для организаций</span>
+            <span class="contact-card__value">{{@contacts.accounting}}</span>
+            <span class="contact-card__note">Сверка расчётов, платёжные документы. <a href="/predpriyatie.html#rekvizity">Реквизиты для оплаты</a></span>
           </div>
         </div>
 
@@ -54,8 +54,8 @@ description: Контакты МУП БГО ВО «Борисоглебские 
           <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-mail"></use></svg></span>
           <div class="contact-card__body">
             <span class="contact-card__label">Электронная почта</span>
-            <span class="contact-card__value">{{contacts.email.value}}</span>
-            <span class="contact-card__note">Для документов по договорам: {{contacts.emailDocs.value}}</span>
+            <span class="contact-card__value">{{@contacts.email}}</span>
+            <span class="contact-card__note">Обращения, документы по договорам, показания приборов учёта</span>
           </div>
         </div>
       </div>
@@ -118,7 +118,7 @@ description: Контакты МУП БГО ВО «Борисоглебские 
         <tbody>
           <tr>
             <td data-th="Вопрос">Нет отопления, нет горячей воды, прорыв, парение</td>
-            <td data-th="Куда">Аварийно-диспетчерская служба, {{contacts.dispatcher.value}}</td>
+            <td data-th="Куда">Аварийно-диспетчерская служба, {{@contacts.dispatcher}}</td>
             <td data-th="Как быстро">Немедленно, круглосуточно</td>
           </tr>
           <tr>
@@ -133,7 +133,7 @@ description: Контакты МУП БГО ВО «Борисоглебские 
           </tr>
           <tr>
             <td data-th="Вопрос">Начисления, перерасчёт, задолженность</td>
-            <td data-th="Куда">Абонентский отдел, {{contacts.subscribers.value}}</td>
+            <td data-th="Куда">Абонентский отдел, {{@contacts.subscribers}}</td>
             <td data-th="Как быстро">В день обращения</td>
           </tr>
           <tr>
@@ -143,7 +143,7 @@ description: Контакты МУП БГО ВО «Борисоглебские 
           </tr>
           <tr>
             <td data-th="Вопрос">Сверка расчётов для организаций</td>
-            <td data-th="Куда">Бухгалтерия, {{contacts.accounting.value}}</td>
+            <td data-th="Куда">Бухгалтерия, {{@contacts.accounting}}</td>
             <td data-th="Как быстро">До 5 рабочих дней</td>
           </tr>
         </tbody>

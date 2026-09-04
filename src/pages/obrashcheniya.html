@@ -18,7 +18,7 @@ description: Форма обращения в МУП БГО ВО «Борисо�
           <svg class="ico ico--sm" aria-hidden="true" style="vertical-align:-4px"><use href="/img/icons.svg#i-alert"></use></svg>
           Отсутствие отопления или авария — не через эту форму
         </h2>
-        <p class="mb-0">Обращение рассматривается до 30 дней. Если в доме холодно, прорвало трубу или отключили горячую воду — звоните в аварийно-диспетчерскую службу: <strong>{{contacts.dispatcher.value}}</strong>, круглосуточно.</p>
+        <p class="mb-0">Обращение рассматривается до 30 дней. Если в доме холодно, прорвало трубу или отключили горячую воду — звоните в аварийно-диспетчерскую службу: <strong>{{@contacts.dispatcher}}</strong>, круглосуточно.</p>
       </div>
 
       <div class="formnote" data-show="false"></div>
@@ -200,7 +200,7 @@ description: Форма обращения в МУП БГО ВО «Борисо�
           <div class="contact-card__body">
             <span class="contact-card__label">Приём руководителя</span>
             <span class="contact-card__value" style="font-size:1.05rem">{{contacts.receptionDays}}</span>
-            <span class="contact-card__note">{{org.addressShort}}. Предварительная запись по телефону {{contacts.reception.value}}</span>
+            <span class="contact-card__note">{{org.addressShort}}. Предварительная запись по телефону {{@contacts.reception}}</span>
           </div>
         </div>
       </div>

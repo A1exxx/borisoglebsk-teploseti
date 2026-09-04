@@ -66,7 +66,7 @@
 
     <div class="masthead__contacts">
       <span class="masthead__label">Аварийно-диспетчерская служба</span>
-      <span class="masthead__phone">{{contacts.dispatcher.value}}</span>
+      <span class="masthead__phone">{{@contacts.dispatcher}}</span>
     </div>
 
     <button type="button" class="navtoggle" data-nav-toggle aria-expanded="false" aria-controls="mainnav">
@@ -143,9 +143,9 @@
 
     <div>
       <h2>Аварийная служба</h2>
-      <p><strong style="font-size:1.2rem;color:#fff">{{contacts.dispatcher.value}}</strong><br>Круглосуточно, без выходных</p>
+      <p><strong style="font-size:1.2rem;color:#fff">{{@contacts.dispatcher}}</strong><br>Круглосуточно, без выходных</p>
       <h2 style="margin-top:24px">Приёмная</h2>
-      <p>{{contacts.reception.value}}<br>{{contacts.hoursShort}}</p>
+      <p>{{@contacts.reception}}<br>{{contacts.hoursShort}}</p>
     </div>
   </div>
 

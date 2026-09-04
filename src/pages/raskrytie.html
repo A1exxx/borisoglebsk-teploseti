@@ -97,10 +97,11 @@ description: Раскрытие информации МУП БГО ВО «Бор
               <tr><th scope="row" data-th="Показатель">Учредитель</th><td data-th="Значение">{{org.founder}}</td></tr>
               <tr><th scope="row" data-th="Показатель">Основной вид деятельности</th><td data-th="Значение">{{org.okved}}</td></tr>
               <tr><th scope="row" data-th="Показатель">Дополнительные виды деятельности</th><td data-th="Значение">{{org.okvedExtra}}</td></tr>
-              <tr><th scope="row" data-th="Показатель">Телефон</th><td data-th="Значение">{{contacts.reception.value}}</td></tr>
-              <tr><th scope="row" data-th="Показатель">Электронная почта</th><td data-th="Значение">{{contacts.email.value}}</td></tr>
+              <tr><th scope="row" data-th="Показатель">Телефон</th><td data-th="Значение">{{@contacts.reception}}</td></tr>
+              <tr><th scope="row" data-th="Показатель">Электронная почта</th><td data-th="Значение">{{@contacts.email}}</td></tr>
               <tr><th scope="row" data-th="Показатель">Режим работы</th><td data-th="Значение">{{contacts.hours}}</td></tr>
               <tr><th scope="row" data-th="Показатель">Официальный сайт</th><td data-th="Значение">{{site.domain}}</td></tr>
+              <tr><th scope="row" data-th="Показатель">Банковские реквизиты</th><td data-th="Значение">Расчётный счёт <span class="tabnum">{{bank.account}}</span> в {{bank.bankName}}, БИК <span class="tabnum">{{bank.bik}}</span>, корреспондентский счёт <span class="tabnum">{{bank.corr}}</span>. <a href="/predpriyatie.html#rekvizity">Полные реквизиты</a></td></tr>
             </tbody>
           </table>
         </div>
@@ -166,7 +167,7 @@ description: Раскрытие информации МУП БГО ВО «Бор
           <li>Реквизиты нормативных правовых актов, регламентирующих порядок подключения</li>
           <li>Телефоны и адреса службы, ответственной за приём и обработку заявок</li>
         </ul>
-        <p>Порядок и перечни документов приведены в разделе <a href="/dogovor.html">«Заключение договора»</a>. Приём заявок ведёт абонентский отдел: {{contacts.subscribers.value}}, {{org.addressShort}}.</p>
+        <p>Порядок и перечни документов приведены в разделе <a href="/dogovor.html">«Заключение договора»</a>. Приём заявок ведёт абонентский отдел: {{@contacts.subscribers}}, {{org.addressShort}}.</p>
       </div>
     </details>
 

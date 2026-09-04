@@ -74,6 +74,39 @@ description: Сведения о МУП БГО ВО «Борисоглебски
         </li>
       </ul>
       <a class="btn btn--ghost mt-4" href="/raskrytie.html">Все документы и раскрытие информации</a>
+
+      <h2 class="mt-6" id="rekvizity">Реквизиты для оплаты</h2>
+      <p>Реквизиты для перечисления платы за тепловую энергию. Организациям удобнее
+         скопировать их целиком — кнопка под таблицей.</p>
+
+      <div class="tablewrap">
+        <table class="table--stack">
+          <tbody>
+            <tr><th scope="row" data-th="Поле">Получатель</th><td data-th="Значение">{{bank.recipientFull}}</td></tr>
+            <tr><th scope="row" data-th="Поле">ИНН</th><td data-th="Значение" class="tabnum">{{org.inn}}</td></tr>
+            <tr><th scope="row" data-th="Поле">КПП</th><td data-th="Значение" class="tabnum">{{org.kpp}}</td></tr>
+            <tr><th scope="row" data-th="Поле">Расчётный счёт</th><td data-th="Значение" class="tabnum">{{bank.account}}</td></tr>
+            <tr><th scope="row" data-th="Поле">Банк получателя</th><td data-th="Значение">{{bank.bankName}}</td></tr>
+            <tr><th scope="row" data-th="Поле">БИК</th><td data-th="Значение" class="tabnum">{{bank.bik}}</td></tr>
+            <tr><th scope="row" data-th="Поле">Корреспондентский счёт</th><td data-th="Значение" class="tabnum">{{bank.corr}}</td></tr>
+            <tr><th scope="row" data-th="Поле">Валюта счёта</th><td data-th="Значение">{{bank.currency}}</td></tr>
+            <tr><th scope="row" data-th="Поле">Адрес получателя</th><td data-th="Значение">{{org.address}}</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="form-actions" style="border:0;padding-top:16px;margin-top:0">
+        <button class="btn btn--brand" type="button" data-copy-rekvizity>
+          <svg class="ico ico--sm" aria-hidden="true"><use href="/img/icons.svg#i-doc"></use></svg>
+          Скопировать реквизиты
+        </button>
+        <span class="hint" style="margin:0" data-copy-status role="status"></span>
+      </div>
+
+      <div class="panel panel--tint mt-5">
+        <p class="mb-0">В назначении платежа указывайте номер лицевого счёта и период,
+        за который вносится плата. Без этих сведений платёж придётся разыскивать вручную.</p>
+      </div>
     </div>
 
     <aside>
@@ -111,10 +144,6 @@ description: Сведения о МУП БГО ВО «Борисоглебски
           <div>
             <dt class="contact-card__label">Налоговый орган</dt>
             <dd style="margin:0">{{org.taxOffice}}</dd>
-          </div>
-          <div>
-            <dt class="contact-card__label">Банковские реквизиты</dt>
-            <dd style="margin:0">{{contacts.accounting.value}}</dd>
           </div>
         </dl>
       </div>

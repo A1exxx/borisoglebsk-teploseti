@@ -30,11 +30,21 @@
     "reception":  { "value": "???", "href": "", "note": "Приёмная" },
     "subscribers":{ "value": "???", "href": "", "note": "Абонентский отдел" },
     "accounting": { "value": "???", "href": "", "note": "Бухгалтерия" },
-    "email":      { "value": "???", "href": "" },
-    "emailDocs":  { "value": "???", "href": "" },
+    "email":      { "value": "borisoglebskteplo@govvrn.ru", "href": "mailto:borisoglebskteplo@govvrn.ru" },
+    "emailDocs":  { "value": "borisoglebskteplo@govvrn.ru", "href": "mailto:borisoglebskteplo@govvrn.ru" },
     "hours":      "Понедельник — пятница, ??? — ???, перерыв ??? — ???",
     "hoursShort": "Пн — Пт, ??? — ???",
     "receptionDays": "???"
+  },
+
+  "bank": {
+    "recipient": "МУП БГО ВО «Борисоглебские теплосети»",
+    "recipientFull": "Муниципальное унитарное предприятие Борисоглебского городского округа Воронежской области «Борисоглебские теплосети»",
+    "account": "40702810002940027036",
+    "bankName": "АО «АЛЬФА-БАНК»",
+    "bik": "044525593",
+    "corr": "30101810200000000593",
+    "currency": "Российский рубль (RUR)"
   },
 
   "readings": {

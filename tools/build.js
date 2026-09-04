@@ -60,12 +60,36 @@ function renderValue(value, keyPath) {
   return str;
 }
 
+/** {{@contacts.email}} — контакт ссылкой: mailto для почты, tel для телефона.
+ *  Пока значение не заполнено, ссылки нет: набирать «уточняется» бессмысленно. */
+function renderContact(dotted) {
+  const item = pick(data, dotted);
+  if (!item || typeof item !== 'object') {
+    missing.add(dotted);
+    return `<span class="todo">не задано: ${dotted}</span>`;
+  }
+  const value = String(item.value ?? '');
+  if (!value || value.includes('???')) {
+    missing.add(dotted + '.value');
+    return '<span class="todo" title="Заполнить в src/data.json">уточняется</span>';
+  }
+  let href = item.href;
+  if (!href) {
+    href = value.includes('@')
+      ? 'mailto:' + value
+      : 'tel:' + value.replace(/[^\d+]/g, '');
+  }
+  return `<a href="${href}">${value}</a>`;
+}
+
 function fill(template, extra = {}) {
-  return template.replace(/\{\{([\w.]+)\}\}/g, (full, key) => {
-    if (Object.prototype.hasOwnProperty.call(extra, key)) return extra[key] ?? '';
-    const value = pick(data, key);
-    return renderValue(value, key);
-  });
+  return template
+    .replace(/\{\{@([\w.]+)\}\}/g, (full, key) => renderContact(key))
+    .replace(/\{\{([\w.]+)\}\}/g, (full, key) => {
+      if (Object.prototype.hasOwnProperty.call(extra, key)) return extra[key] ?? '';
+      const value = pick(data, key);
+      return renderValue(value, key);
+    });
 }
 
 /** Front-matter в начале файла страницы: title / description / crumbs. */
@@ -95,6 +119,23 @@ function crumbsHtml(title) {
   </div>
 </div>`;
 }
+
+/** Синтаксис клиентского скрипта проверяем до сборки: одна опечатка в нём
+ *  тихо отключает разом и проверку форм, и версию для слабовидящих. */
+function checkClientScript() {
+  const file = path.join(OUT, 'js', 'main.js');
+  try {
+    new Function(fs.readFileSync(file, 'utf8'));
+  } catch (err) {
+    console.error('');
+    console.error('ОШИБКА в public/js/main.js: ' + err.message);
+    console.error('Сборка остановлена: со сломанным скриптом сайт теряет все интерактивные функции.');
+    console.error('');
+    process.exit(1);
+  }
+}
+
+checkClientScript();
 
 fs.mkdirSync(OUT, { recursive: true });
 

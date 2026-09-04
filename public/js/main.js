@@ -497,7 +497,55 @@
       });
   }
 
-  /* ---------- 7. Ошибка из адресной строки (отправка без JS) ---------- */
+  /* ---------- 7. Копирование реквизитов ---------- */
+
+  // Бухгалтеру нужны реквизиты целиком, а не по одной строке из таблицы.
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-copy-rekvizity]');
+    if (!btn) return;
+
+    var table = document.querySelector('#rekvizity ~ .tablewrap table')
+      || btn.closest('div').previousElementSibling.querySelector('table');
+    if (!table) return;
+
+    var lines = [];
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      var name = tr.cells[0] && tr.cells[0].textContent.trim();
+      var value = tr.cells[1] && tr.cells[1].textContent.trim();
+      if (name && value) lines.push(name + ': ' + value);
+    });
+    var text = lines.join(String.fromCharCode(10));
+
+    var status = document.querySelector('[data-copy-status]');
+    function done(msg) {
+      if (status) {
+        status.textContent = msg;
+        setTimeout(function () { status.textContent = ''; }, 4000);
+      }
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text)
+        .then(function () { done('Реквизиты скопированы'); })
+        .catch(function () { done('Не удалось скопировать — выделите таблицу вручную'); });
+    } else {
+      // http без TLS: clipboard API недоступен, остаётся старый способ
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:absolute;left:-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        done(document.execCommand('copy') ? 'Реквизиты скопированы' : 'Не удалось скопировать — выделите таблицу вручную');
+      } catch (err) {
+        done('Не удалось скопировать — выделите таблицу вручную');
+      }
+      document.body.removeChild(ta);
+    }
+  });
+
+  /* ---------- 8. Ошибка из адресной строки (отправка без JS) ---------- */
 
   document.addEventListener('DOMContentLoaded', function () {
     var params = new URLSearchParams(window.location.search);
@@ -507,7 +555,7 @@
     if (form) setNote(form, 'err', 'Заявка не отправлена', error);
   });
 
-  /* ---------- 8. Текущий раздел в меню ---------- */
+  /* ---------- 9. Текущий раздел в меню ---------- */
 
   document.addEventListener('DOMContentLoaded', function () {
     var here = window.location.pathname.replace(/\/index\.html$/, '/');
