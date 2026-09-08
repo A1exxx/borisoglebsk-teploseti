@@ -17,6 +17,8 @@ const fsp = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
 
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 const ROOT = path.resolve(__dirname, '..');
@@ -25,8 +27,18 @@ const DATA_DIR = path.join(__dirname, 'data');
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const CONTENT_FILE = path.join(DATA_DIR, 'content.json');
 
+function generateDevPassword() {
+  const pass = crypto.randomBytes(6).toString('base64url');
+  console.warn(
+    '\n[admin] ADMIN_PASS не задан — сгенерирован временный пароль на это включение:\n' +
+    `[admin]   логин: admin   пароль: ${pass}\n` +
+    '[admin] Для боевого сервера задайте ADMIN_USER и ADMIN_PASS в .env — иначе\n' +
+    '[admin] пароль будет новым при каждом перезапуске.\n');
+  return pass;
+}
+
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
-const ADMIN_PASS = process.env.ADMIN_PASS || 'teplo2026';
+const ADMIN_PASS = process.env.ADMIN_PASS || generateDevPassword();
 
 const MAX_FILE_MB = 10;
 const MAX_FILES = 10;

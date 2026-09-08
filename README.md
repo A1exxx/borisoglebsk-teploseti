@@ -30,7 +30,8 @@ cd server && npm install && node server.js
 
 - Сайт: http://localhost:3000
 - Панель управления: http://localhost:3000/admin
-  логин `admin`, пароль `teplo2026` — **сменить перед публикацией в интернете**
+  логин `admin`, пароль — сервер сам сгенерирует временный и покажет его
+  в консоли при запуске. **Для боевого сервера задайте свой в `.env`** (см. `.env.example`).
 
 Пока сайт запущен так, он виден только на этом компьютере. Чтобы его открыли
 посторонние, нужен хостинг и домен — порядок действий и цены в `СТОИМОСТЬ.md`,
@@ -119,7 +120,8 @@ node tools/build.js
 ADMIN_USER=teploseti ADMIN_PASS='длинный-пароль' node server.js
 ```
 
-Пароль по умолчанию (`teplo2026`) публиковать нельзя.
+Проще — прописать `ADMIN_USER` и `ADMIN_PASS` в `.env` (скопировав `.env.example`),
+тогда пароль не нужно передавать в команде запуска и он переживёт перезапуск.
 
 ### 2. Настроить HTTPS
 
@@ -141,10 +143,11 @@ ADMIN_USER=teploseti ADMIN_PASS='длинный-пароль' node server.js
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs nginx
 
-# 2. Файлы проекта
+# 2. Файлы проекта — клонируем прямо из GitHub
 sudo mkdir -p /var/www/teploseti && sudo chown $USER /var/www/teploseti
-# скопировать содержимое папки проекта в /var/www/teploseti
+git clone https://github.com/A1exxx/borisoglebsk-teploseti.git /var/www/teploseti
 cd /var/www/teploseti/server && npm install --omit=dev
+cp .env.example .env && nano .env   # вписать свой ADMIN_PASS
 ```
 
 Служба `/etc/systemd/system/teploseti.service`:
@@ -203,6 +206,20 @@ sudo certbot --nginx -d ВАШ-ДОМЕН.ru -d www.ВАШ-ДОМЕН.ru
 
 `client_max_body_size 12M` обязателен: без него nginx отклонит заявку с документами
 раньше, чем её увидит приложение.
+
+---
+
+## Как обновить сайт после правок
+
+Код правится и хранится в GitHub, как обычно. На сервере после `git push`
+нужно подтянуть изменения и перезапустить службу:
+
+```bash
+ssh пользователь@ваш-сервер "cd /var/www/teploseti && git pull && cd server && npm install --omit=dev && sudo systemctl restart teploseti"
+```
+
+Одна команда с компьютера разработчика — сайт обновился. `.env` при этом не
+трогается: он не в git, `git pull` его не перезапишет.
 
 ---
 
