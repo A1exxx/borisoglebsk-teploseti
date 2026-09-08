@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: borisoglebsk-teploseti
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install --omit=dev
+    startCommand: node server.js
+    envVars:
+      - key: ADMIN_USER
+        value: admin
+      - key: ADMIN_PASS
+        generateValue: true
