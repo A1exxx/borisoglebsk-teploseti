@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{title}} — {{org.shortName}}</title>
 <meta name="description" content="{{description}}">
+<meta name="robots" content="{{robots}}">
+<link rel="canonical" href="{{canonical}}">
 <meta name="theme-color" content="#10293f">
 <link rel="stylesheet" href="/css/style.css?v={{assets.css}}">
 <link rel="icon" href="/img/favicon-32.png" sizes="32x32" type="image/png">
@@ -14,8 +16,12 @@
 <meta property="og:description" content="{{description}}">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="ru_RU">
-<meta property="og:image" content="/img/logo-512.png">
+<meta property="og:image" content="{{ogImage}}">
+<meta property="og:url" content="{{canonical}}">
 <meta property="og:site_name" content="{{org.shortName}}">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"GovernmentOrganization","name":"{{org.fullName}}","alternateName":"{{org.shortName}}","url":"{{canonical}}","logo":"{{ogImage}}","taxID":"{{org.inn}}","email":"{{contacts.email.value}}","address":{"@type":"PostalAddress","streetAddress":"{{org.addressShort}}","addressLocality":"Борисоглебск","addressRegion":"Воронежская область","postalCode":"397165","addressCountry":"RU"},"areaServed":"{{org.region}}"}
+</script>
 </head>
 <body>
 

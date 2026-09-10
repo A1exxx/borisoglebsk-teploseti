@@ -139,21 +139,52 @@ checkClientScript();
 
 fs.mkdirSync(OUT, { recursive: true });
 
+const SITE_URL = `https://${data.site.domain}`;
+// Страницы, которых не должно быть в поиске: служебные и технические.
+const NOINDEX = new Set(['spasibo.html', '404.html']);
+
 const built = [];
+const indexable = [];
 for (const file of fs.readdirSync(PAGES).filter((f) => f.endsWith('.html')).sort()) {
   const raw = fs.readFileSync(path.join(PAGES, file), 'utf8');
   const { meta, body } = parsePage(raw);
 
+  const canonPath = file === 'index.html' ? '/' : `/${file}`;
+  const canonical = SITE_URL + canonPath;
+
   const html = fill(layout, {
     title: meta.title || 'Страница',
     description: meta.description || '',
+    canonical,
+    robots: NOINDEX.has(file) ? 'noindex, follow' : 'index, follow',
+    ogImage: `${SITE_URL}/img/logo-512.png`,
     crumbs: meta.crumbs === 'no' ? '' : crumbsHtml(meta.crumbs || meta.title),
     content: fill(body),
   });
 
   fs.writeFileSync(path.join(OUT, file), html, 'utf8');
   built.push(`${file} (${Math.round(Buffer.byteLength(html) / 1024)} КБ)`);
+  if (!NOINDEX.has(file)) indexable.push(canonPath);
 }
+
+/* robots.txt и карта сайта: генерируются вместе со страницами, чтобы список
+   разделов не расходился с тем, что реально собрано. */
+fs.writeFileSync(
+  path.join(OUT, 'robots.txt'),
+  ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /api/', '', `Sitemap: ${SITE_URL}/sitemap.xml`, ''].join('\n'),
+  'utf8'
+);
+
+const today = new Date().toISOString().slice(0, 10);
+const urls = indexable
+  .map((p) => `  <url>\n    <loc>${SITE_URL}${p}</loc>\n    <lastmod>${today}</lastmod>\n  </url>`)
+  .join('\n');
+fs.writeFileSync(
+  path.join(OUT, 'sitemap.xml'),
+  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
+  'utf8'
+);
+built.push(`robots.txt, sitemap.xml (${indexable.length} адресов)`);
 
 console.log(`Собрано страниц: ${built.length}`);
 built.forEach((b) => console.log('  ' + b));
