@@ -223,19 +223,46 @@ ssh пользователь@ваш-сервер "cd /var/www/teploseti && git p
 
 ---
 
-## Резервное копирование
+## Что настроено на боевом сервере
 
-Копировать нужно две папки — в них всё, что накопил сайт:
+Сайт работает на `https://borisoglebskteplo.ru` (VPS Timeweb, Москва, IP 200.169.176.28, Ubuntu 24.04).
+На этом же сервере живёт тестовый контур Теплобиллинга — **порты 80 и 443 держит только nginx**,
+Теплобиллинг работает за ним (`Caddyfile.proxy`, Caddy на `127.0.0.1:8081`). Если вернуть
+Теплобиллингу привязку к 443, HTTPS сайта отвалится.
+
+| Что | Где | Проверить |
+|---|---|---|
+| Сайт | systemd-служба `teploseti`, Node на `127.0.0.1:3000` | `systemctl status teploseti` |
+| Веб-сервер, TLS | nginx, конфиг `/etc/nginx/sites-available/teploseti` | `nginx -t` |
+| Сертификат | Let's Encrypt, продлевается сам | `certbot certificates` |
+| Резервные копии | ежедневно в 03:15, хранятся 14 дней в `/var/backups/teploseti` | `ls -la /var/backups/teploseti` |
+| Сторож | каждые 2 минуты, перезапуск после 2 неудач подряд | `tail /var/log/teploseti-watchdog.log` |
+| Защита от перебора | fail2ban, jail `sshd` | `fail2ban-client status sshd` |
+| Файрвол | ufw: открыты 22, 80, 443 | `ufw status` |
+
+### Резервное копирование
+
+Скрипт `/usr/local/bin/backup-teploseti.sh`, расписание — `/etc/cron.d/teploseti-backup`.
+Архивирует `server/data` (заявки) и `server/uploads` (приложенные файлы). Внутри персональные
+данные, поэтому каталог и архивы закрыты правами `700`/`600`.
+
+Восстановление:
 
 ```bash
-tar czf backup-$(date +%F).tar.gz server/data server/uploads
+systemctl stop teploseti
+tar xzf /var/backups/teploseti/teploseti-ГГГГ-ММ-ДД.tar.gz -C /var/www/teploseti/server
+chown -R www-data:www-data /var/www/teploseti
+systemctl start teploseti
 ```
 
-Ежедневно через cron:
+Копии лежат на том же диске: они спасают от ошибки в приложении и случайного удаления,
+но не от отказа диска. Внешнее хранилище — отдельная задача.
 
-```
-0 3 * * * cd /var/www/teploseti && tar czf /var/backups/teploseti-$(date +\%F).tar.gz server/data server/uploads
-```
+### Доступ на сервер
+
+Только по SSH-ключу: вход по паролю отключён (`/etc/ssh/sshd_config.d/00-hardening.conf`).
+Файл назван с `00`, чтобы читаться раньше `50-cloud-init.conf` — в OpenSSH выигрывает
+первое значение, иначе настройка не применится.
 
 ---
 

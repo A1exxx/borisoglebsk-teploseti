@@ -126,6 +126,20 @@ function wantsJSON(req) {
     || (req.get('Accept') || '').includes('application/json');
 }
 
+/**
+ * Referer присылает клиент, и он может указывать на чужой сайт. Возвращаем только
+ * путь внутри своего домена — иначе форма превращается в открытый редирект.
+ */
+function safeBackTo(req) {
+  const host = req.get('Host') || '';
+  try {
+    const u = new URL(req.get('Referer') || '', `https://${host}`);
+    return u.host === host ? u.pathname + u.search : '/';
+  } catch {
+    return '/';
+  }
+}
+
 /** Один ответ для JS-клиента и для браузера без JS. */
 function respond(req, res, { ok, ticket, message, errors, backTo }) {
   if (wantsJSON(req)) {
@@ -160,7 +174,7 @@ function rateLimit({ windowMs, max }) {
       return respond(req, res, {
         ok: false,
         message: 'Слишком много обращений за короткое время. Повторите отправку через несколько минут.',
-        backTo: req.get('Referer') || '/',
+        backTo: safeBackTo(req),
       });
     }
     next();
@@ -446,7 +460,13 @@ app.get('/api/admin/export/:kind.csv', async (req, res) => {
     Object.keys(row).forEach((k) => { if (k !== 'files') set.add(k); });
     return set;
   }, new Set())];
-  const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  // Заявку присылает кто угодно. Excel выполняет ячейку, начинающуюся с = + - @,
+  // поэтому такие значения гасим апострофом — иначе выгрузка атакует того, кто её открыл.
+  const esc = (v) => {
+    const s = String(v ?? '');
+    const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
   const csv = [cols.join(';'), ...rows.map((r) => cols.map((c) => esc(r[c])).join(';'))].join('\r\n');
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${kind}.csv"`);
@@ -516,11 +536,11 @@ app.use((err, req, res, next) => {
       LIMIT_FILE_SIZE: `Файл больше ${MAX_FILE_MB} МБ. Уменьшите размер и попробуйте снова.`,
       LIMIT_FILE_COUNT: `Можно приложить не более ${MAX_FILES} файлов.`,
     };
-    return respond(req, res, { ok: false, message: map[err.code] || 'Не удалось загрузить файл', backTo: req.get('Referer') || '/' });
+    return respond(req, res, { ok: false, message: map[err.code] || 'Не удалось загрузить файл', backTo: safeBackTo(req) });
   }
   if (err && err.message) {
-    console.error('[error]', err.message);
-    return respond(req, res, { ok: false, message: err.message, backTo: req.get('Referer') || '/' });
+    console.error('[error]', err);
+    return respond(req, res, { ok: false, message: 'Не удалось обработать запрос. Попробуйте ещё раз или сообщите в абонентский отдел.', backTo: safeBackTo(req) });
   }
   next(err);
 });
