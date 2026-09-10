@@ -478,7 +478,10 @@ html[data-vision="on"] .doc__ico { color: var(--c-text); }
 .acc + .acc { margin-top: var(--s3); }
 .acc summary { display: flex; align-items: center; gap: var(--s3); padding: var(--s4) var(--s5); font-weight: 600; cursor: pointer; color: var(--c-brand); list-style: none; min-height: 56px; }
 .acc summary::-webkit-details-marker { display: none; }
-.acc summary::after { content: ""; margin-left: auto; width: 11px; height: 11px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-3px); transition: transform var(--dur) var(--ease); flex: 0 0 auto; }
+/* Стрелка — квадрат, повёрнутый на 45°: её угол выходит примерно на 3px за
+   границы бокса, а у .acc стоит overflow: hidden. Без зазора справа угол
+   срезается — заметно там, где у summary обнулены боковые отступы. */
+.acc summary::after { content: ""; margin-left: auto; margin-right: 3px; width: 11px; height: 11px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-3px); transition: transform var(--dur) var(--ease); flex: 0 0 auto; }
 .acc[open] summary::after { transform: rotate(-135deg) translateY(-3px); }
 .acc summary:hover { background: var(--blue-050); }
 .acc__body { padding: 0 var(--s5) var(--s5); border-top: 1px solid var(--line-soft); padding-top: var(--s4); }
@@ -506,7 +509,9 @@ html[data-vision="on"] .steps > li::before { background: transparent; color: var
 html[data-vision="on"] .contact-card__ico { background: transparent; border: 2px solid var(--c-border); }
 .contact-card__body { min-width: 0; }
 .contact-card__label { display: block; font-size: .84rem; text-transform: uppercase; letter-spacing: .04em; color: var(--c-text-soft); }
-.contact-card__value { font-size: 1.1rem; font-weight: 700; color: var(--c-brand); text-decoration: none; }
+/* Длинная почта вида borisoglebskteplo@govvrn.ru не имеет мест переноса и
+   вылезала за колонку — разрешаем разрыв в любом месте. */
+.contact-card__value { font-size: 1.1rem; font-weight: 700; color: var(--c-brand); text-decoration: none; display: block; overflow-wrap: anywhere; }
 a.contact-card__value:hover { color: var(--c-link); }
 .contact-card__note { display: block; font-size: .88rem; color: var(--c-text-soft); margin-top: 2px; }
 
