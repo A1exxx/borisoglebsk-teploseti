@@ -344,6 +344,7 @@ html[data-vision="on"] .svc__ico { background: transparent; border: 2px solid va
 .badge {
   display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
   border-radius: 999px; font-size: .82rem; font-weight: 600; line-height: 1.5; white-space: nowrap;
+  max-width: 100%;
   border: 1px solid transparent;
 }
 .badge--danger  { background: var(--red-050);   color: var(--red-700);   border-color: #f0c3c7; }
@@ -352,6 +353,10 @@ html[data-vision="on"] .svc__ico { background: transparent; border: 2px solid va
 .badge--info    { background: var(--blue-050);  color: var(--navy-700);  border-color: #c5d9ea; }
 .badge--dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: 0 0 auto; }
 html[data-vision="on"] .badge { background: transparent; color: var(--c-text); border: 2px solid var(--c-border); }
+
+/* На телефоне подпись статуса («Гидравлические испытания») не помещалась
+   в строку и вылезала за край карточки — разрешаем перенос. */
+@media (max-width: 720px) { .badge { white-space: normal; } }
 
 /* ---------- 15. Полоса срочного объявления ---------- */
 .alertbar { background: var(--red-700); color: #fff; }
@@ -404,7 +409,9 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 
 /* ---------- 18. Формы ---------- */
 .form { max-width: 720px; }
-.form fieldset { border: 0; padding: 0; margin: 0 0 var(--s6); }
+/* min-width: 0 обязателен: браузер задаёт fieldset минимальную ширину по
+   содержимому, из-за чего длинный список тем распирал форму на телефоне. */
+.form fieldset { border: 0; padding: 0; margin: 0 0 var(--s6); min-width: 0; }
 .form legend { font-size: 1.15rem; font-weight: 700; color: var(--c-brand); padding: 0; margin-bottom: var(--s2); }
 .form legend + .hint { margin-top: -4px; margin-bottom: var(--s4); }
 
