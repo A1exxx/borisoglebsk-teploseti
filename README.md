@@ -284,3 +284,53 @@ PDF, JPG, PNG, HEIC, DOC, DOCX, XLS, XLSX, RTF, ODT. Исполняемые фа
 
 **Защита форм:** ограничение частоты (25 отправок с одного адреса за 10 минут),
 скрытое поле-ловушка от роботов, серверная проверка всех полей.
+
+## Как проверить вёрстку после правок
+
+Правка стилей легко ломает страницу на телефоне так, что на большом мониторе
+этого не видно. Поэтому после любой правки `public/css/style.css` прогоняйте
+проверку: она открывает каждую страницу в скрытом окне заданной ширины и ищет
+элементы, которые вылезли за экран или обрезаны.
+
+Откройте сайт в браузере, нажмите F12 → «Консоль» и вставьте:
+
+```js
+const pages = ['/','/predpriyatie.html','/tarify.html','/raskrytie.html','/oplata.html',
+  '/pokazaniya.html','/otklyucheniya.html','/dogovor.html','/obrashcheniya.html','/zakupki.html',
+  '/protivodeystvie-korrupcii.html','/kontakty.html','/politika.html','/karta-sayta.html',
+  '/404.html','/spasibo.html'];
+const audit = async (width) => {
+  const fr = document.createElement('iframe');
+  fr.style.cssText = 'position:fixed;left:-99999px;top:0;border:0;height:1200px;width:' + width + 'px';
+  document.body.appendChild(fr);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const bad = [];
+  for (const p of pages) {
+    fr.src = p;
+    for (let i = 0; i < 50; i++) { await sleep(70); const d = fr.contentDocument;
+      if (d && d.readyState !== 'loading' && d.location.pathname === p && d.body.children.length > 2) break; }
+    await sleep(200);
+    const d = fr.contentDocument, w = fr.contentWindow, vw = d.documentElement.clientWidth;
+    d.querySelectorAll('details').forEach(x => x.open = true);
+    d.querySelectorAll('body *').forEach(e => {
+      if (e.closest('svg') || e.closest('.visually-hidden') || e.classList.contains('skip-link')) return;
+      if (e.closest('thead') && e.closest('table.table--stack')) return;
+      const cs = w.getComputedStyle(e);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || cs.position === 'fixed') return;
+      const r = e.getBoundingClientRect();
+      if (r.right > vw + 1) bad.push([width, p, 'вылез вправо на ' + Math.round(r.right - vw) + ' px', e]);
+      if (e.scrollWidth - e.clientWidth > 2 && cs.overflowX === 'hidden') bad.push([width, p, 'обрезано по ширине', e]);
+    });
+    if (d.documentElement.scrollWidth > vw + 1) bad.push([width, p, 'страница едет вбок', null]);
+  }
+  fr.remove();
+  return bad;
+};
+for (const w of [320, 375, 768, 980, 1280]) console.table(await audit(w));
+```
+
+Пустые таблицы — всё в порядке. Единственное ожидаемое срабатывание —
+`section.hero` на главной: там намеренно подрезан фоновый рисунок.
+
+Проверяйте на пяти ширинах: 320 и 375 — телефоны, 768 — планшет,
+980 — граница, после которой появляется боковая колонка, 1280 — монитор.
