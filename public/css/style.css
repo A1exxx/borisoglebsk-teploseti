@@ -416,6 +416,20 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
   .table--stack th[scope="row"] + td:only-of-type { padding-top: 0; }
 }
 
+/* Таблица работ — пять колонок: до 980 px она не помещалась, и последняя
+   («Плановое окончание») уезжала за край с незаметной прокруткой. Поэтому
+   карточки здесь включаются раньше, чем у остальных таблиц. */
+@media (min-width: 721px) and (max-width: 979px) {
+  .table--stack-wide, .table--stack-wide tbody { display: block; }
+  .table--stack-wide caption { display: block; padding-bottom: var(--s3); }
+  .table--stack-wide thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .table--stack-wide tr { display: block; border-bottom: 1px solid var(--c-border); padding: var(--s3) 0; }
+  .table--stack-wide tr:last-child { border-bottom: 0; }
+  .table--stack-wide td { display: flex; gap: var(--s3); border: 0; padding: 5px var(--s4); text-align: left; overflow-wrap: anywhere; }
+  .table--stack-wide td::before { content: attr(data-th) ": "; font-weight: 700; color: var(--c-text-soft); flex: 0 0 25%; font-size: .88rem; }
+  .table--stack-wide td.num { text-align: left; white-space: normal; }
+}
+
 /* ---------- 18. Формы ---------- */
 .form { max-width: 720px; }
 /* min-width: 0 обязателен: браузер задаёт fieldset минимальную ширину по
