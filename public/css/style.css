@@ -405,6 +405,12 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
   .table--stack td::before { content: attr(data-th) ": "; font-weight: 700; color: var(--c-text-soft); flex: 0 0 42%; font-size: .88rem; }
   /* Счёт и ИНН длиннее колонки: без переноса они вылезали за край карточки. */
   .table--stack td.num { text-align: left; white-space: normal; }
+  /* В таблицах «Показатель — Значение» заголовок строки уже стоит над
+     значением, а подпись «Значение:» съедала 42 % ширины: полное
+     наименование предприятия растягивалось на восемь строк. */
+  .table--stack th[scope="row"] { display: block; border: 0; padding: 5px var(--s4); }
+  .table--stack th[scope="row"] + td:only-of-type::before { content: none; }
+  .table--stack th[scope="row"] + td:only-of-type { padding-top: 0; }
 }
 
 /* ---------- 18. Формы ---------- */
