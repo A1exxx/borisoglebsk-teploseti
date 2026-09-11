@@ -154,6 +154,10 @@ main { flex: 1 0 auto; }
 
 .stack > * + * { margin-top: var(--s4); }
 .grid { display: grid; gap: var(--s4); }
+/* По умолчанию ячейка грида не может быть уже своего содержимого. На форме
+   обращений из-за этого длинный <select> с темами растягивал колонку, и вся
+   страница на телефоне ехала вбок на 20 px. */
+.grid > * { min-width: 0; }
 @media (min-width: 700px)  { .grid--2 { grid-template-columns: 1fr 1fr; } }
 @media (min-width: 980px)  { .grid--3 { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 980px)  { .grid--sidebar { grid-template-columns: minmax(0,1fr) 320px; gap: var(--s6); align-items: start; } }
