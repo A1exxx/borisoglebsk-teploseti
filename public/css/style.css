@@ -384,12 +384,18 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 
 /* На узких экранах таблицы превращаются в карточки */
 @media (max-width: 720px) {
+  /* Пока таблица остаётся display: table, ширину ей задаёт самая длинная
+     строка: полное наименование предприятия растягивало карточку раскрытия
+     до 1000 px, и реквизиты приходилось листать вбок. Блочная раскладка
+     возвращает width: 100% и перенос строк. */
+  .table--stack, .table--stack tbody { display: block; }
   .table--stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .table--stack tr { display: block; border-bottom: 1px solid var(--c-border); padding: var(--s3) 0; }
   .table--stack tr:last-child { border-bottom: 0; }
-  .table--stack td { display: flex; gap: var(--s3); border: 0; padding: 5px var(--s4); text-align: left; }
+  .table--stack td { display: flex; gap: var(--s3); border: 0; padding: 5px var(--s4); text-align: left; overflow-wrap: anywhere; }
   .table--stack td::before { content: attr(data-th) ": "; font-weight: 700; color: var(--c-text-soft); flex: 0 0 42%; font-size: .88rem; }
-  .table--stack td.num { text-align: left; }
+  /* Счёт и ИНН длиннее колонки: без переноса они вылезали за край карточки. */
+  .table--stack td.num { text-align: left; white-space: normal; }
 }
 
 /* ---------- 18. Формы ---------- */
