@@ -247,7 +247,7 @@
         })
         .catch(function () {
           setNote(form, 'err', 'Нет связи с сервером',
-            'Проверьте подключение к интернету и попробуйте ещё раз. Показания также принимаются по телефону 8 (47354) 6-05-52.');
+            'Проверьте подключение к интернету и попробуйте ещё раз. Показания также принимает абонентский отдел по телефону — он указан в разделе «Контакты».');
         })
         .finally(function () {
           if (btn) { btn.disabled = false; btn.innerHTML = label; }
@@ -491,7 +491,7 @@
       .catch(function () {
         document.querySelectorAll('[data-outages]').forEach(function (el) {
           var empty = document.querySelector(el.dataset.emptyTarget || '#outages-empty');
-          if (empty) { empty.hidden = false; empty.querySelector('p').textContent = 'Не удалось загрузить сведения о работах. Уточните по телефону диспетчерской 8 (47354) 6-05-52.'; }
+          if (empty) { empty.hidden = false; empty.querySelector('p').textContent = 'Не удалось загрузить сведения о работах. Телефон аварийно-диспетчерской службы указан в разделе «Контакты».'; }
           el.hidden = true;
         });
       });

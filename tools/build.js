@@ -79,7 +79,9 @@ function renderContact(dotted) {
       ? 'mailto:' + value
       : 'tel:' + value.replace(/[^\d+]/g, '');
   }
-  return `<a href="${href}">${value}</a>`;
+  // Телефон не должен переноситься по строкам: «8» отрывалась от остального номера.
+  const shown = value.includes('@') ? value : value.replace(/ /g, '\u00a0');
+  return `<a href="${href}">${shown}</a>`;
 }
 
 function fill(template, extra = {}) {
