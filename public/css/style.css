@@ -398,6 +398,9 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
      до 1000 px, и реквизиты приходилось листать вбок. Блочная раскладка
      возвращает width: 100% и перенос строк. */
   .table--stack, .table--stack tbody { display: block; }
+  /* Подпись таблицы внутри блочной раскладки иначе сжимается
+     в узкую колонку и половина карточки остаётся пустой. */
+  .table--stack caption { display: block; padding-bottom: var(--s3); }
   .table--stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .table--stack tr { display: block; border-bottom: 1px solid var(--c-border); padding: var(--s3) 0; }
   .table--stack tr:last-child { border-bottom: 0; }
