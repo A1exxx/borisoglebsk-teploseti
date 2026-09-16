@@ -62,6 +62,7 @@ function assetHash(relPath) {
 data.assets = {
   css: assetHash(path.join('css', 'style.css')),
   js: assetHash(path.join('js', 'main.js')),
+  thermal: assetHash(path.join('js', 'hero-thermal.js')),
 };
 const layout = fs.readFileSync(path.join(SRC, 'layout.html'), 'utf8');
 

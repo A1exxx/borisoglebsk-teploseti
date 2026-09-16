@@ -4,16 +4,42 @@ description: Официальный сайт МУП БГО ВО «Борисог
 crumbs: no
 ---
 
-<section class="hero hero--scene">
-  <!-- HERO-SCENE:START -->
-  <svg class="hero__scene u-decor" viewBox="0 0 1600 220" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+<section class="hero hero--scene hero--thermal" data-thermal>
+  <canvas class="hero__canvas u-decor" aria-hidden="true"></canvas>
+  <div class="hero__thermal u-decor">
+    <!-- HERO-SCENE:START -->
+    <svg class="hero__scene u-decor" viewBox="0 0 1600 560" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false"
+       data-network='{"w":1600,"h":560,"max":1235,"lines":[{"pts":[[750,536],[758,536],[758,510],[778,510],[778,536],[990,536],[990,510],[1010,510],[1010,536],[1244,536],[1244,510],[1264,510],[1264,536],[1600,536]],"d0":0},{"pts":[[618,536],[456,536],[456,510],[436,510],[436,536],[130,536],[130,510],[110,510],[110,536],[0,536]],"d0":0},{"pts":[[900,536],[900,400],[940,360],[1240,360],[1280,320],[1280,180],[1320,140],[1600,140]],"d0":202},{"pts":[[1130,536],[1130,470],[1170,430],[1380,430]],"d0":484},{"pts":[[1400,536],[1400,500],[1440,460],[1440,300],[1480,260],[1600,260]],"d0":806},{"pts":[[300,536],[300,500],[270,470],[0,470]],"d0":370}]}'
+       data-buildings='[[[30,544],[30,504],[66,480],[102,504],[102,544]],[[138,544],[138,432],[334,432],[334,544]],[[356,544],[356,504],[392,480],[428,504],[428,544]],[[464,544],[464,480],[588,480],[588,544]],[[618,544],[618,488],[750,488],[750,544]],[[716,488],[719,390],[731,390],[734,488]],[[786,544],[786,432],[982,432],[982,544]],[[1018,544],[1018,480],[1142,480],[1142,544]],[[1164,544],[1164,504],[1200,480],[1236,504],[1236,544]],[[1272,544],[1272,432],[1468,432],[1468,544]],[[1490,544],[1490,504],[1526,480],[1562,504],[1562,544]]]'>
     <defs>
       <radialGradient id="heroGlow" cx="50%" cy="100%" r="60%">
         <stop offset="0" stop-color="#e8783c" stop-opacity=".34"/>
         <stop offset="1" stop-color="#e8783c" stop-opacity="0"/>
       </radialGradient>
     </defs>
-    <ellipse cx="684" cy="220" rx="620" ry="170" fill="url(#heroGlow)"/>
+    <ellipse class="glow" cx="684" cy="560" rx="620" ry="170" fill="url(#heroGlow)"/>
+    <g class="schema">
+      <path class="trace" d="M900 536L900 400L940 360L1240 360L1280 320L1280 180L1320 140L1600 140"/>
+      <path class="trace" d="M1130 536L1130 470L1170 430L1380 430"/>
+      <path class="trace" d="M1400 536L1400 500L1440 460L1440 300L1480 260L1600 260"/>
+      <path class="trace" d="M300 536L300 500L270 470L0 470"/>
+      <circle class="node" cx="900" cy="400" r="3.5"/>
+      <circle class="node" cx="940" cy="360" r="3.5"/>
+      <circle class="node" cx="1240" cy="360" r="3.5"/>
+      <circle class="node" cx="1280" cy="320" r="3.5"/>
+      <circle class="node" cx="1280" cy="180" r="3.5"/>
+      <circle class="node" cx="1320" cy="140" r="3.5"/>
+      <circle class="node" cx="1130" cy="470" r="3.5"/>
+      <circle class="node" cx="1170" cy="430" r="3.5"/>
+      <rect class="node node--end" x="1375" y="425" width="10" height="10"/>
+      <circle class="node" cx="1400" cy="500" r="3.5"/>
+      <circle class="node" cx="1440" cy="460" r="3.5"/>
+      <circle class="node" cx="1440" cy="300" r="3.5"/>
+      <circle class="node" cx="1480" cy="260" r="3.5"/>
+      <circle class="node" cx="300" cy="500" r="3.5"/>
+      <circle class="node" cx="270" cy="470" r="3.5"/>
+    </g>
+    <g transform="translate(0 340)">
     <g class="steam">
       <circle cx="728" cy="44" r="8"/><circle cx="728" cy="44" r="9"/><circle cx="728" cy="44" r="7"/>
     </g>
@@ -284,15 +310,10 @@ crumbs: no
     <path class="pulse pulse--l" pathLength="1000" d="M618 196H456V170H436V196H130V170H110V196H0"/>
     <path class="pulse pulse--glow pulse--r" pathLength="1000" d="M750 196H758V170H778V196H990V170H1010V196H1244V170H1264V196H1600"/>
     <path class="pulse pulse--r" pathLength="1000" d="M750 196H758V170H778V196H990V170H1010V196H1244V170H1264V196H1600"/>
+    </g>
   </svg>
-  <!-- HERO-SCENE:END -->
-  <button type="button" class="scene-toggle u-decor" data-scene-toggle aria-pressed="false" hidden>
-    <svg class="ico ico--sm" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path class="scene-toggle__pause" d="M9 6v12M15 6v12"/>
-      <path class="scene-toggle__play" d="M8 5.5v13l11-6.5z"/>
-    </svg>
-    <span class="visually-hidden">Остановить анимацию</span>
-  </button>
+    <!-- HERO-SCENE:END -->
+  </div>
 
   <div class="wrap hero__in">
     <div>
@@ -303,29 +324,44 @@ crumbs: no
           <svg class="ico ico--sm" aria-hidden="true"><use href="/img/icons.svg#i-meter"></use></svg>
           Передать показания
         </a>
-        <a class="btn btn--ghost" style="background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.45)" href="/otklyucheniya.html">
+        <a class="btn btn--ghost btn--on-dark" href="/otklyucheniya.html">
           <svg class="ico ico--sm" aria-hidden="true"><use href="/img/icons.svg#i-wrench"></use></svg>
           Отключения и работы
         </a>
       </div>
     </div>
 
-    <div class="hero__facts">
-      <div class="fact">
-        <span class="fact__num">{{@contacts.dispatcher}}</span>
-        <span class="fact__label">Аварийно-диспетчерская служба, круглосуточно</span>
+    <aside class="status" data-status data-from="{{readings.periodFrom}}" data-to="{{readings.periodTo}}" aria-labelledby="status-title">
+      <div class="status__head">
+        <span class="status__live" aria-hidden="true"></span>
+        <h2 class="status__title" id="status-title">На сегодня</h2>
+        <span class="status__clock" data-status-clock></span>
+        <button type="button" class="scene-toggle u-decor" data-scene-toggle aria-pressed="false" hidden>
+          <svg class="ico ico--sm" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path class="scene-toggle__pause" d="M9 6v12M15 6v12"/>
+            <path class="scene-toggle__play" d="M8 5.5v13l11-6.5z"/>
+          </svg>
+          <span class="visually-hidden">Остановить анимацию</span>
+        </button>
       </div>
-      <div class="fact">
-        <span class="fact__num">с {{readings.periodFrom}} по {{readings.periodTo}} число</span>
-        <span class="fact__label">Период передачи показаний приборов учёта</span>
-      </div>
-      <div class="fact">
-        <span class="fact__num">30 дней</span>
-        <span class="fact__label">Срок рассмотрения письменного обращения <span class="nowrap">(59-ФЗ)</span></span>
-      </div>
-    </div>
+      <dl class="status__list">
+        <div class="status__row">
+          <dt>Аварийная служба</dt>
+          <dd><span class="status__value">{{@contacts.dispatcher}}</span> <span class="status__note">круглосуточно</span></dd>
+        </div>
+        <div class="status__row" data-status-readings>
+          <dt>Приём показаний</dt>
+          <dd><span class="status__dot" aria-hidden="true"></span><span class="status__value" data-value>с {{readings.periodFrom}} по {{readings.periodTo}} число</span> <a class="status__link" href="/pokazaniya.html">Передать</a></dd>
+        </div>
+        <div class="status__row" data-status-outages>
+          <dt>Работы на сетях</dt>
+          <dd><span class="status__dot" aria-hidden="true"></span><span class="status__value" data-value>сведения на странице</span> <a class="status__link" href="/otklyucheniya.html">Подробнее</a></dd>
+        </div>
+      </dl>
+    </aside>
   </div>
 </section>
+<script src="/js/hero-thermal.js?v={{assets.thermal}}" defer></script>
 
 <section class="section">
   <div class="wrap">

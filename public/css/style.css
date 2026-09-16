@@ -904,3 +904,205 @@ html[data-vision="on"]::view-transition-new(root) { animation: none; }
 .demo-banner__switch a { padding: 3px 12px; border: 1px solid #d9b870; border-radius: 999px; text-decoration: none; }
 .demo-banner__switch a:hover { background: #fdebc2; }
 .demo-banner__switch a[aria-current="page"] { background: #5c3d00; border-color: #5c3d00; color: #fff6e0; }
+
+/* ---------- 32. Вариант 2: «пульт диспетчера» ---------- */
+/* Первый экран в стиле диспетчерской: схема трасс со свечением на WebGL
+   (public/js/hero-thermal.js), контурный город, панель «На сегодня».
+   Без WebGL остаётся та же сцена статичной SVG. Остальной сайт светлый:
+   формы и документы на светлом фоне читать легче, особенно пожилым. */
+:root {
+  --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", "SFMono-Regular", Menlo, Consolas, "Roboto Mono", monospace;
+  --tech: #7ecbff;
+  --tech-line: rgba(126, 203, 255, .22);
+}
+
+/* 32.1 Сцена: холст под контурной SVG, верх растворяется в фоне */
+.hero--thermal {
+  --scene-h: clamp(270px, 35vw, 620px);
+  background-image: radial-gradient(rgba(126, 203, 255, .12) 1px, transparent 1.6px);
+  background-size: 26px 26px;
+}
+.hero--thermal .hero__in { padding-bottom: calc(var(--scene-h) * .5); } /* панель заходит на пустое «небо» полосы */
+@media (min-width: 980px) {
+  /* Над текстом слева шейдер сам приглушает свечение; город поднимаем так,
+     чтобы котельная с трубой начиналась сразу под кнопками */
+  .hero--thermal .hero__in { padding-top: var(--s7); padding-bottom: calc(var(--scene-h) * .33 + var(--s4)); }
+}
+html[data-vision="on"] .hero--thermal { background-image: none; }
+html[data-vision="on"] .hero--thermal .hero__in { padding-bottom: var(--s6); }
+
+.hero__thermal {
+  position: absolute; left: 0; right: 0; bottom: 0; height: var(--scene-h);
+  pointer-events: none;
+  background-image: radial-gradient(rgba(126, 203, 255, .16) 1px, transparent 1.6px);
+  background-size: 26px 26px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12%);
+  mask-image: linear-gradient(to bottom, transparent, #000 12%);
+}
+.hero__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 1.4s var(--ease-out); }
+.hero--thermal.is-live .hero__canvas { opacity: 1; }
+.hero--thermal.is-live .hero__thermal { background-image: none; }
+.hero__thermal .hero__scene {
+  left: 0; transform: none; width: 100%; max-width: none; height: 100%;
+  -webkit-mask-image: none; mask-image: none;
+}
+
+.hero--thermal .hero__scene .bld { fill: rgba(8, 24, 40, .42); stroke: rgba(126, 203, 255, .62); stroke-width: 1.1; }
+.hero--thermal .hero__scene .edge { stroke: rgba(126, 203, 255, .62); stroke-width: 1.1; }
+.hero--thermal .hero__scene .win { fill: rgba(126, 203, 255, .07); }
+.hero--thermal .hero__scene .w { fill: #ffb86b; }
+.hero--thermal .hero__scene .w2 { fill: #ffe2b8; }
+.hero--thermal .hero__scene .fire { fill: #ff9a4d; }
+.hero--thermal .hero__scene .ground { stroke: rgba(126, 203, 255, .4); stroke-width: 1.1; }
+.hero--thermal .hero__scene .support { stroke: rgba(126, 203, 255, .28); stroke-width: 1.5; }
+.hero--thermal .hero__scene .pipe { stroke: rgba(126, 203, 255, .16); stroke-width: 5; }
+.hero--thermal .hero__scene .pipe-line { stroke: rgba(126, 203, 255, .78); stroke-width: 1.1; }
+.hero--thermal .hero__scene .trace { fill: none; stroke: rgba(126, 203, 255, .45); stroke-width: 1.1; stroke-linejoin: round; }
+.hero--thermal .hero__scene .node { fill: #10293f; stroke: rgba(126, 203, 255, .9); stroke-width: 1.1; }
+.hero--thermal .hero__scene .node--end { fill: rgba(126, 203, 255, .16); }
+.hero--thermal .hero__scene .glow { opacity: .55; }
+/* Пар в контурной графике читается как пятна у кнопок — во втором варианте его нет */
+.hero--thermal .hero__scene .steam { display: none; }
+/* Когда работает шейдер, импульсы и свечение рисует он */
+.hero--thermal.is-live .hero__scene .pulse,
+.hero--thermal.is-live .hero__scene .glow { display: none; }
+
+.btn--on-dark { background: rgba(255, 255, 255, .06); color: #fff; border-color: rgba(126, 203, 255, .45); }
+.btn--on-dark:hover { background: rgba(126, 203, 255, .14); border-color: var(--tech); }
+html[data-vision="on"] .btn--on-dark { background: var(--c-surface); color: var(--c-text); border-color: var(--c-border); }
+
+/* 32.2 Панель «На сегодня» */
+.status {
+  position: relative; margin-top: var(--s6);
+  background: rgba(7, 21, 35, .78); color: #dbe7f1;
+  border: 1px solid var(--tech-line); border-radius: var(--radius-lg);
+  padding: var(--s3) var(--s5) var(--s2);
+  box-shadow: 0 24px 48px -28px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+@media (min-width: 980px) { .status { margin-top: 0; } }
+.status__head {
+  display: flex; align-items: center; gap: var(--s2);
+  padding-bottom: var(--s2); border-bottom: 1px solid rgba(126, 203, 255, .16);
+}
+.status__title {
+  margin: 0; font-family: var(--font-mono); font-size: .8rem; font-weight: 600;
+  letter-spacing: .1em; text-transform: uppercase; color: #9fc6e2;
+}
+.status__clock { margin-left: auto; font-family: var(--font-mono); font-size: .8rem; color: #cfe3f2; font-variant-numeric: tabular-nums; }
+.status__live { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: #4fd1a5; }
+@media (max-width: 479px) {
+  /* На узком экране время уходит второй строкой, кнопка остановки — вправо */
+  .status__head { flex-wrap: wrap; row-gap: 0; }
+  .status__clock { order: 3; flex-basis: 100%; margin-left: 16px; }
+  .status .scene-toggle { margin-left: auto; }
+}
+.status .scene-toggle {
+  position: relative; right: auto; bottom: auto;
+  width: 36px; height: 36px; margin-right: -8px;
+  background: transparent; border-color: transparent; color: #9fc6e2;
+}
+.status .scene-toggle::before { content: ""; position: absolute; inset: -4px; } /* зона нажатия 44×44 */
+.status .scene-toggle:hover { background: rgba(126, 203, 255, .12); border-color: var(--tech-line); color: #fff; }
+.status__list { margin: 0; }
+.status__row { padding: var(--s3) 0; border-bottom: 1px solid rgba(126, 203, 255, .1); }
+.status__row:last-child { border-bottom: 0; }
+.status dt {
+  margin-bottom: 2px; font-family: var(--font-mono); font-size: .74rem;
+  letter-spacing: .07em; text-transform: uppercase; color: #8fb6d2;
+}
+.status dd { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--s3); }
+.status__value { font-size: 1.14rem; font-weight: 600; color: #fff; font-variant-numeric: tabular-nums; }
+.status__note { font-size: .88rem; color: #a7c3d8; }
+.status__link { font-size: .92rem; font-weight: 600; color: var(--tech); text-underline-offset: 3px; }
+.status__link:hover { color: #fff; }
+.status__dot { width: 8px; height: 8px; margin-right: -6px; border-radius: 50%; background: #6d8aa3; }
+.status__dot[data-tone="ok"] { background: #4fd1a5; }
+.status__dot[data-tone="warn"] { background: #ffb86b; }
+.status .todo { background: rgba(255, 214, 102, .2); color: #ffe9b0; border-bottom-color: #ffd166; }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Ограниченное число вспышек: бесконечное мигание мешает (WCAG 2.2.2) */
+  .status__live { animation: live-ping 2.4s var(--ease-out) 8; }
+  .status__dot[data-tone="warn"] { animation: live-ping-warm 2.4s var(--ease-out) 8; }
+  html:not([data-vision="on"]) .hero__in > .status { animation: rise-in .8s var(--ease-out) .22s both; }
+}
+@keyframes live-ping { from { box-shadow: 0 0 0 0 rgba(79, 209, 165, .55); } 70%, to { box-shadow: 0 0 0 9px rgba(79, 209, 165, 0); } }
+@keyframes live-ping-warm { from { box-shadow: 0 0 0 0 rgba(255, 184, 107, .55); } 70%, to { box-shadow: 0 0 0 9px rgba(255, 184, 107, 0); } }
+
+html[data-vision="on"] .status { background: var(--c-surface); color: var(--c-text); border: 2px solid var(--c-border); box-shadow: none; }
+html[data-vision="on"] .status__title,
+html[data-vision="on"] .status__clock,
+html[data-vision="on"] .status dt,
+html[data-vision="on"] .status__value,
+html[data-vision="on"] .status__note { color: var(--c-text); font-family: var(--font-ui); letter-spacing: normal; }
+html[data-vision="on"] .status__link { color: var(--c-text); text-decoration: underline; }
+html[data-vision="on"] .status__live,
+html[data-vision="on"] .status__dot { display: none; }
+html[data-vision="on"] .status__head,
+html[data-vision="on"] .status__row { border-color: var(--c-border); }
+
+/* 32.3 Полоса прогресса прокрутки (браузеры без scroll-timeline её не показывают) */
+.scroll-progress { display: none; }
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .scroll-progress {
+      display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 60; height: 3px;
+      background: linear-gradient(90deg, #2f96d6, #e8903c);
+      transform-origin: 0 50%; transform: scaleX(0); pointer-events: none;
+      animation: scroll-grow linear both; animation-timeline: scroll(root);
+    }
+    html[data-vision="on"] .scroll-progress { display: none; }
+  }
+}
+@keyframes scroll-grow { to { transform: scaleX(1); } }
+
+/* 32.4 Подсветка карточки за курсором (только мышь) */
+@media (hover: hover) and (pointer: fine) {
+  .svc { position: relative; isolation: isolate; }
+  .svc::before {
+    content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none;
+    background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(47, 150, 214, .8), transparent 70%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    opacity: 0; transition: opacity .3s var(--ease);
+  }
+  .svc::after {
+    content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+    background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(47, 150, 214, .07), transparent 60%);
+    opacity: 0; transition: opacity .3s var(--ease);
+  }
+  .svc:hover::before, .svc:hover::after { opacity: 1; }
+  html[data-vision="on"] .svc::before, html[data-vision="on"] .svc::after { display: none; }
+
+  /* Главная кнопка: блик при наведении */
+  .btn--primary { position: relative; overflow: hidden; isolation: isolate; }
+  .btn--primary::after {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, .26) 48%, transparent 66%);
+    transform: translateX(-110%);
+  }
+  .btn--primary:hover::after { transform: translateX(110%); transition: transform .9s var(--ease-out); }
+  html[data-vision="on"] .btn--primary::after { display: none; }
+}
+
+/* 32.5 Цифры и служебные подписи — моноширинным, как в диспетчерской */
+.eyebrow, .newsitem__date, .doc__meta, td.num { font-family: var(--font-mono); }
+.eyebrow { letter-spacing: .12em; }
+html[data-vision="on"] .eyebrow,
+html[data-vision="on"] .newsitem__date,
+html[data-vision="on"] .doc__meta,
+html[data-vision="on"] td.num { font-family: var(--font-ui); letter-spacing: normal; }
+
+/* 32.6 Живой индикатор у таблицы работ и сетка в подвале */
+.tablewrap[data-outages] caption::before {
+  content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px;
+  border-radius: 50%; background: #e8903c; vertical-align: 1px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tablewrap[data-outages] caption::before { animation: live-ping-warm 2.4s var(--ease-out) 8; }
+}
+html[data-vision="on"] .tablewrap[data-outages] caption::before { display: none; }
+.footer { background-image: radial-gradient(rgba(126, 203, 255, .07) 1px, transparent 1.6px); background-size: 26px 26px; }
+html[data-vision="on"] .footer { background-image: none; }
