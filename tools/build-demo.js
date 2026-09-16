@@ -1,0 +1,43 @@
+'use strict';
+/**
+ * Демо-копия сайта для показа на GitHub Pages.
+ *
+ * Рабочий сайт (public/) не трогает: собирает в отдельную папку. В демо
+ * вверху полоса «демо-версия», формы не отправляются, поисковикам индексировать
+ * запрещено, а блоки «Отключения» и «Новости» берут данные из снимка
+ * demo/content.json — на GitHub Pages нет сервера с /api/content.
+ *
+ * Запуск: node tools/build-demo.js [папка]
+ *   без аргумента — .demo/borisoglebsk-teploseti/
+ *   с аргументом  — например, рабочая копия ветки gh-pages
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { spawnSync } = require('child_process');
+
+const ROOT = path.resolve(__dirname, '..');
+const BASE = '/borisoglebsk-teploseti';
+const OUT = path.resolve(process.argv[2] || path.join(ROOT, '.demo', BASE.slice(1)));
+
+fs.mkdirSync(OUT, { recursive: true });
+
+// Статика копией. Постраничные сканы (_scans) в git не лежат и в демо не нужны.
+for (const dir of ['css', 'js', 'img', 'docs']) {
+  fs.cpSync(path.join(ROOT, 'public', dir), path.join(OUT, dir), {
+    recursive: true,
+    filter: (src) => !src.split(path.sep).includes('_scans'),
+  });
+}
+
+fs.mkdirSync(path.join(OUT, 'api'), { recursive: true });
+fs.copyFileSync(path.join(ROOT, 'demo', 'content.json'), path.join(OUT, 'api', 'content'));
+// Без этого файла GitHub Pages прогоняет сайт через Jekyll
+fs.writeFileSync(path.join(OUT, '.nojekyll'), '');
+
+const result = spawnSync(process.execPath, [path.join(__dirname, 'build.js')], {
+  stdio: 'inherit',
+  env: { ...process.env, SITE_OUT: OUT, SITE_DEMO: '1', SITE_BASE: BASE },
+});
+if (result.status === 0) console.log(`\nДемо собрано: ${OUT}`);
+process.exit(result.status ?? 1);

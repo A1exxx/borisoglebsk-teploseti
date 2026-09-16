@@ -15,11 +15,28 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 const PAGES = path.join(SRC, 'pages');
-const OUT = path.join(ROOT, 'public');
+// Демо-сборка пишет в отдельную папку, чтобы не задеть рабочий public/
+const OUT = process.env.SITE_OUT ? path.resolve(process.env.SITE_OUT) : path.join(ROOT, 'public');
 
 const crypto = require('crypto');
 
 const data = JSON.parse(fs.readFileSync(path.join(SRC, 'data.json'), 'utf8'));
+
+// Демо-сборка (tools/build-demo.js): полоса «демо-версия», запрет индексации
+// и базовый путь для GitHub Pages. Обычная сборка эти переменные не задаёт.
+const DEMO = process.env.SITE_DEMO === '1';
+const BASE = (process.env.SITE_BASE || '').replace(/\/+$/, '');
+const DEMO_BANNER = `<div class="demo-banner" role="note">
+  <div class="wrap">
+    <strong>Демо-версия нового оформления.</strong>
+    <span>Формы здесь не работают. Официальный сайт — <a href="https://borisoglebskteplo.ru/">borisoglebskteplo.ru</a></span>
+  </div>
+</div>`;
+
+/** Абсолютные ссылки вида /css/… на GitHub Pages ведут мимо папки проекта. */
+function withBase(html) {
+  return BASE ? html.replace(/(\s(?:href|src|action)=")\/(?!\/)/g, `$1${BASE}/`) : html;
+}
 
 /** Короткий хеш файла — подставляется в ссылку как ?v=…
  *  Статика отдаётся с длинным сроком кеширования, поэтому без этого
@@ -158,13 +175,15 @@ for (const file of fs.readdirSync(PAGES).filter((f) => f.endsWith('.html')).sort
     title: meta.title || 'Страница',
     description: meta.description || '',
     canonical,
-    robots: NOINDEX.has(file) ? 'noindex, follow' : 'index, follow',
+    robots: DEMO ? 'noindex, nofollow' : NOINDEX.has(file) ? 'noindex, follow' : 'index, follow',
+    demoAttr: DEMO ? ` data-demo="1"${BASE ? ` data-base="${BASE}"` : ''}` : '',
+    demoBanner: DEMO ? DEMO_BANNER : '',
     ogImage: `${SITE_URL}/img/logo-512.png`,
     crumbs: meta.crumbs === 'no' ? '' : crumbsHtml(meta.crumbs || meta.title),
     content: fill(body),
   });
 
-  fs.writeFileSync(path.join(OUT, file), html, 'utf8');
+  fs.writeFileSync(path.join(OUT, file), withBase(html), 'utf8');
   built.push(`${file} (${Math.round(Buffer.byteLength(html) / 1024)} КБ)`);
   if (!NOINDEX.has(file)) indexable.push(canonPath);
 }
@@ -173,7 +192,10 @@ for (const file of fs.readdirSync(PAGES).filter((f) => f.endsWith('.html')).sort
    разделов не расходился с тем, что реально собрано. */
 fs.writeFileSync(
   path.join(OUT, 'robots.txt'),
-  ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /api/', '', `Sitemap: ${SITE_URL}/sitemap.xml`, ''].join('\n'),
+  (DEMO
+    ? ['User-agent: *', 'Disallow: /', '']
+    : ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /api/', '', `Sitemap: ${SITE_URL}/sitemap.xml`, '']
+  ).join('\n'),
   'utf8'
 );
 
