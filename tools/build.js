@@ -26,10 +26,19 @@ const data = JSON.parse(fs.readFileSync(path.join(SRC, 'data.json'), 'utf8'));
 // и базовый путь для GitHub Pages. Обычная сборка эти переменные не задаёт.
 const DEMO = process.env.SITE_DEMO === '1';
 const BASE = (process.env.SITE_BASE || '').replace(/\/+$/, '');
+// Варианты оформления в демо: ссылки полные, чтобы withBase() их не трогал;
+// скрипт подставляет в них ту же страницу, что открыта сейчас.
+const DEMO_ROOT = 'https://a1exxx.github.io/borisoglebsk-teploseti';
+const DEMO_VARIANT = process.env.SITE_DEMO_VARIANT || '1';
+const DEMO_VARIANTS = [['1', '', 'Вариант 1'], ['2', '/v2', 'Вариант 2']];
+const DEMO_SWITCH = DEMO_VARIANTS.map(([id, sub, label]) =>
+  `<a href="${DEMO_ROOT}${sub}/" data-variant-base="/borisoglebsk-teploseti${sub}"${id === DEMO_VARIANT ? ' aria-current="page"' : ''}>${label}</a>`
+).join('');
 const DEMO_BANNER = `<div class="demo-banner" role="note">
   <div class="wrap">
     <strong>Демо-версия нового оформления.</strong>
     <span>Формы здесь не работают. Официальный сайт — <a href="https://borisoglebskteplo.ru/">borisoglebskteplo.ru</a></span>
+    <nav class="demo-banner__switch" aria-label="Варианты оформления">${DEMO_SWITCH}</nav>
   </div>
 </div>`;
 

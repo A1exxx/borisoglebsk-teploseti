@@ -7,9 +7,10 @@
  * запрещено, а блоки «Отключения» и «Новости» берут данные из снимка
  * demo/content.json — на GitHub Pages нет сервера с /api/content.
  *
- * Запуск: node tools/build-demo.js [папка]
+ * Запуск: node tools/build-demo.js [папка] [--variant 2]
  *   без аргумента — .demo/borisoglebsk-teploseti/
  *   с аргументом  — например, рабочая копия ветки gh-pages
+ *   --variant 2    — второй вариант оформления, адрес …/borisoglebsk-teploseti/v2/
  */
 
 const fs = require('fs');
@@ -17,8 +18,12 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const BASE = '/borisoglebsk-teploseti';
-const OUT = path.resolve(process.argv[2] || path.join(ROOT, '.demo', BASE.slice(1)));
+const args = process.argv.slice(2);
+const vIdx = args.indexOf('--variant');
+const VARIANT = vIdx !== -1 ? String(args.splice(vIdx, 2)[1] || '1') : '1';
+const SUB = VARIANT === '1' ? '' : `/v${VARIANT}`;
+const BASE = '/borisoglebsk-teploseti' + SUB;
+const OUT = path.resolve(args[0] ? path.join(args[0], SUB) : path.join(ROOT, '.demo', BASE.slice(1)));
 
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -37,7 +42,7 @@ fs.writeFileSync(path.join(OUT, '.nojekyll'), '');
 
 const result = spawnSync(process.execPath, [path.join(__dirname, 'build.js')], {
   stdio: 'inherit',
-  env: { ...process.env, SITE_OUT: OUT, SITE_DEMO: '1', SITE_BASE: BASE },
+  env: { ...process.env, SITE_OUT: OUT, SITE_DEMO: '1', SITE_BASE: BASE, SITE_DEMO_VARIANT: VARIANT },
 });
 if (result.status === 0) console.log(`\nДемо собрано: ${OUT}`);
 process.exit(result.status ?? 1);

@@ -900,3 +900,7 @@ html[data-vision="on"]::view-transition-new(root) { animation: none; }
 .demo-banner { background: #fff6e0; color: #5c3d00; border-bottom: 1px solid #ecd39a; font-size: .9rem; line-height: 1.45; }
 .demo-banner .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--s3); padding-block: 10px; }
 .demo-banner a { color: inherit; font-weight: 700; }
+.demo-banner__switch { margin-left: auto; display: inline-flex; gap: 6px; }
+.demo-banner__switch a { padding: 3px 12px; border: 1px solid #d9b870; border-radius: 999px; text-decoration: none; }
+.demo-banner__switch a:hover { background: #fdebc2; }
+.demo-banner__switch a[aria-current="page"] { background: #5c3d00; border-color: #5c3d00; color: #fff6e0; }

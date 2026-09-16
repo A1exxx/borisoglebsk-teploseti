@@ -579,6 +579,13 @@
     });
   });
 
+  /* ---------- 9a. Переключатель вариантов в демо ---------- */
+
+  document.querySelectorAll('[data-variant-base]').forEach(function (link) {
+    var page = window.location.pathname.slice(BASE.length) || '/';
+    link.href = window.location.origin + link.getAttribute('data-variant-base') + page;
+  });
+
   /* ---------- 10. Движение ---------- */
 
   // Появление блоков при прокрутке, пауза сцены главного экрана, когда её не
