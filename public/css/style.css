@@ -205,6 +205,18 @@ html[data-vision="on"] .vision-btn[aria-pressed="true"] { background: var(--c-te
 .vision-btn--bw { background: #fff; color: #000; }
 .vision-btn--wb { background: #000; color: #fff; }
 .vision-btn--by { background: #9dd1ff; color: #063462; }
+/* Кнопки-образцы схем сохраняют свои цвета и в режиме для слабовидящих:
+   общее правило выше перекрашивало текст в цвет схемы, и на «Белым по
+   чёрному» надпись исчезала — чёрный текст на чёрном фоне. */
+html[data-vision="on"] .vision-btn--bw,
+html[data-vision="on"] .vision-btn--bw[aria-pressed="true"] { background: #fff; color: #000; border-color: #000; }
+html[data-vision="on"] .vision-btn--wb,
+html[data-vision="on"] .vision-btn--wb[aria-pressed="true"] { background: #000; color: #fff; border-color: #fff; }
+html[data-vision="on"] .vision-btn--by,
+html[data-vision="on"] .vision-btn--by[aria-pressed="true"] { background: #9dd1ff; color: #063462; border-color: #063462; }
+html[data-vision="on"] .vision-btn--bw[aria-pressed="true"],
+html[data-vision="on"] .vision-btn--wb[aria-pressed="true"],
+html[data-vision="on"] .vision-btn--by[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--c-surface), 0 0 0 6px var(--c-text); font-weight: 700; }
 
 /* ---------- 6. Шапка ---------- */
 .masthead { background: var(--c-surface); border-bottom: 1px solid var(--c-border); }
