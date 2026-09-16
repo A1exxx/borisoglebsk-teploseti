@@ -358,12 +358,15 @@
     var limit = Number(list.dataset.limit) || items.length;
     var active = items.filter(function (o) { return o.status !== 'done'; }).slice(0, limit);
 
+    var empty = document.querySelector(list.dataset.emptyTarget || '#outages-empty');
     if (!active.length) {
-      var empty = document.querySelector(list.dataset.emptyTarget || '#outages-empty');
       if (empty) empty.hidden = false;
       list.hidden = true;
       return;
     }
+    // Плашка «Действующих ограничений нет» видна в разметке по умолчанию.
+    // Без этой строки она оставалась под таблицей с текущими работами.
+    if (empty) empty.hidden = true;
     tbody.innerHTML = '';
     active.forEach(function (o) {
       var tr = document.createElement('tr');
