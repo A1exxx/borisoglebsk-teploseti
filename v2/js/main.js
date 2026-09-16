@@ -499,8 +499,10 @@
         allOutages = data.outages || [];
         document.querySelectorAll('[data-outages]').forEach(function (el) { renderOutages(el, allOutages); });
         document.querySelectorAll('[data-news]').forEach(function (el) { renderNews(el, data.news || []); });
+        document.dispatchEvent(new CustomEvent('site:outages', { detail: { items: allOutages } }));
       })
       .catch(function () {
+        document.dispatchEvent(new CustomEvent('site:outages', { detail: { error: true } }));
         document.querySelectorAll('[data-outages]').forEach(function (el) {
           var empty = document.querySelector(el.dataset.emptyTarget || '#outages-empty');
           if (empty) { empty.hidden = false; empty.querySelector('p').textContent = 'Не удалось загрузить сведения о работах. Телефон аварийно-диспетчерской службы указан в разделе «Контакты».'; }
@@ -585,6 +587,91 @@
     var page = window.location.pathname.slice(BASE.length) || '/';
     link.href = window.location.origin + link.getAttribute('data-variant-base') + page;
   });
+
+  /* ---------- 9b. Панель «На сегодня» (вариант 2 первого экрана) ---------- */
+
+  // Только настоящие сведения: время по Москве, окно приёма показаний из
+  // настроек сайта и число объявленных работ из того же источника, что и
+  // таблица отключений. Ничего не выдумываем и не называем «онлайн-данными».
+  var statusPanel = document.querySelector('[data-status]');
+  if (statusPanel) {
+    var MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    var moscowNow = function () {
+      var parts = {};
+      try {
+        new Intl.DateTimeFormat('ru-RU', {
+          timeZone: 'Europe/Moscow', year: 'numeric', month: 'numeric', day: 'numeric',
+          hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+        }).formatToParts(new Date()).forEach(function (p) { parts[p.type] = p.value; });
+      } catch (err) {
+        var local = new Date();
+        parts = { month: local.getMonth() + 1, day: local.getDate(), hour: local.getHours(), minute: local.getMinutes() };
+      }
+      return {
+        m: Number(parts.month), d: Number(parts.day),
+        time: ('0' + Number(parts.hour)).slice(-2) + ':' + ('0' + Number(parts.minute)).slice(-2),
+      };
+    };
+    var setRow = function (row, text, tone) {
+      if (!row) return;
+      var value = row.querySelector('[data-value]');
+      var dot = row.querySelector('.status__dot');
+      if (value) value.textContent = text;
+      if (dot) dot.setAttribute('data-tone', tone);
+    };
+    var plural = function (n, one, few, many) {
+      var n10 = n % 10, n100 = n % 100;
+      if (n10 === 1 && n100 !== 11) return one;
+      if (n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14)) return few;
+      return many;
+    };
+    var clock = statusPanel.querySelector('[data-status-clock]');
+    var from = Number(statusPanel.getAttribute('data-from'));
+    var to = Number(statusPanel.getAttribute('data-to'));
+
+    var tick = function () {
+      var now = moscowNow();
+      if (clock) clock.textContent = now.d + ' ' + MONTHS[now.m - 1] + ', ' + now.time + ' МСК';
+      if (from && to) {
+        var row = statusPanel.querySelector('[data-status-readings]');
+        if (now.d >= from && now.d <= to) {
+          setRow(row, 'идёт до ' + to + ' ' + MONTHS[now.m - 1], 'ok');
+        } else {
+          var month = now.d < from ? now.m - 1 : now.m % 12;
+          setRow(row, 'с ' + from + ' по ' + to + ' ' + MONTHS[month], 'idle');
+        }
+      }
+    };
+    tick();
+    setInterval(tick, 20000);
+
+    document.addEventListener('site:outages', function (e) {
+      var row = statusPanel.querySelector('[data-status-outages]');
+      if (e.detail.error) { setRow(row, 'нет связи с сервером', 'idle'); return; }
+      var active = (e.detail.items || []).filter(function (o) { return o.status !== 'done'; }).length;
+      if (!active) setRow(row, 'штатный режим', 'ok');
+      else setRow(row, 'объявлено: ' + active + ' ' + plural(active, 'работа', 'работы', 'работ'), 'warn');
+    });
+  }
+
+  /* ---------- 9c. Подсветка карточки за курсором (вариант 2) ---------- */
+
+  if (window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches && document.querySelector('.svc')) {
+    var spotEvent = null;
+    var spotFrame = 0;
+    document.addEventListener('pointermove', function (e) {
+      spotEvent = e;
+      if (spotFrame) return;
+      spotFrame = requestAnimationFrame(function () {
+        spotFrame = 0;
+        var card = spotEvent.target && spotEvent.target.closest ? spotEvent.target.closest('.svc') : null;
+        if (!card) return;
+        var r = card.getBoundingClientRect();
+        card.style.setProperty('--mx', (spotEvent.clientX - r.left) + 'px');
+        card.style.setProperty('--my', (spotEvent.clientY - r.top) + 'px');
+      });
+    }, { passive: true });
+  }
 
   /* ---------- 10. Движение ---------- */
 
