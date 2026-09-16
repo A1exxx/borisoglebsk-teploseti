@@ -1,12 +1,14 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-demo="1" data-base="/borisoglebsk-teploseti">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Передача показаний приборов учёта — МУП «Борисоглебские теплосети»</title>
 <meta name="description" content="Онлайн-форма передачи показаний приборов учёта тепловой энергии и горячей воды в МУП БГО ВО «Борисоглебские теплосети». Показания принимаются ежемесячно с 20 по 25 число.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://borisoglebskteplo.ru/pokazaniya.html">
 <meta name="theme-color" content="#10293f">
-<link rel="stylesheet" href="/borisoglebsk-teploseti/css/style.css?v=2f713829">
+<link rel="stylesheet" href="/borisoglebsk-teploseti/css/style.css?v=455d1792">
 <link rel="icon" href="/borisoglebsk-teploseti/img/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="icon" href="/borisoglebsk-teploseti/img/favicon.ico" sizes="any">
 <link rel="apple-touch-icon" href="/borisoglebsk-teploseti/img/logo-180.png">
@@ -14,12 +16,22 @@
 <meta property="og:description" content="Онлайн-форма передачи показаний приборов учёта тепловой энергии и горячей воды в МУП БГО ВО «Борисоглебские теплосети». Показания принимаются ежемесячно с 20 по 25 число.">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="ru_RU">
-<meta property="og:image" content="/img/logo-512.png">
+<meta property="og:image" content="https://borisoglebskteplo.ru/img/logo-512.png">
+<meta property="og:url" content="https://borisoglebskteplo.ru/pokazaniya.html">
 <meta property="og:site_name" content="МУП «Борисоглебские теплосети»">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"GovernmentOrganization","name":"Муниципальное унитарное предприятие Борисоглебского городского округа Воронежской области «Борисоглебские теплосети»","alternateName":"МУП «Борисоглебские теплосети»","url":"https://borisoglebskteplo.ru/pokazaniya.html","logo":"https://borisoglebskteplo.ru/img/logo-512.png","taxID":"3604086750","email":"borisoglebskteplo@govvrn.ru","address":{"@type":"PostalAddress","streetAddress":"г. Борисоглебск, ул. Матросовская, зд. 117","addressLocality":"Борисоглебск","addressRegion":"Воронежская область","postalCode":"397165","addressCountry":"RU"},"areaServed":"Борисоглебский городской округ Воронежской области"}
+</script>
 </head>
 <body>
 
 <a class="skip-link" href="#main">Перейти к основному содержанию</a>
+<div class="demo-banner" role="note">
+  <div class="wrap">
+    <strong>Демо-версия нового оформления.</strong>
+    <span>Формы здесь не работают. Официальный сайт — <a href="https://borisoglebskteplo.ru/">borisoglebskteplo.ru</a></span>
+  </div>
+</div>
 
 <div class="topbar">
   <div class="wrap topbar__in">
@@ -81,6 +93,7 @@
     <ul class="nav__list">
       <li><a class="nav__link" href="/borisoglebsk-teploseti/">Главная</a></li>
       <li><a class="nav__link" href="/borisoglebsk-teploseti/pokazaniya.html">Показания</a></li>
+      <li><a class="nav__link" href="/borisoglebsk-teploseti/oplata.html">Оплата</a></li>
       <li><a class="nav__link" href="/borisoglebsk-teploseti/otklyucheniya.html">Отключения</a></li>
       <li><a class="nav__link" href="/borisoglebsk-teploseti/dogovor.html">Договор</a></li>
       <li><a class="nav__link" href="/borisoglebsk-teploseti/obrashcheniya.html">Обращения</a></li>
@@ -123,7 +136,9 @@
     <div>
       <div class="panel panel--tint" style="margin-bottom:32px">
         <h2 style="font-size:1.15rem;margin-bottom:8px">Показания принимаются с 20 по 25 число каждого месяца</h2>
-        <p class="mb-0">Показания, переданные после 25 числа, учитываются в следующем расчётном периоде. Если показания не переданы, объём потребления определяется расчётным способом — по среднемесячному потреблению, а после трёх месяцев — по нормативу.</p>
+        <p>Показания, переданные после 25 числа, учитываются в следующем расчётном периоде. Если показания не переданы, объём потребления определяется расчётным способом — по среднемесячному потреблению, а после трёх месяцев — по нормативу.</p>
+        <p class="mb-0">По переданным показаниям формируется квитанция — она выставляется не позднее 5-го числа
+           следующего месяца, оплатить её нужно до 15-го числа. <a href="/borisoglebsk-teploseti/oplata.html">Сроки, способы оплаты и разбор квитанции</a></p>
       </div>
 
       <div class="formnote" data-show="false"></div>
@@ -141,7 +156,7 @@
         </div>
       </div>
 
-      <form class="form" id="form" method="post" action="/api/readings" data-ajax data-success-target="#reading-success" novalidate>
+      <form class="form" id="form" method="post" action="/borisoglebsk-teploseti/api/readings" data-ajax data-success-target="#reading-success" novalidate>
         <p class="hint" style="margin-bottom:24px">Поля со звёздочкой <span class="req">*</span> обязательны.</p>
 
         <fieldset>
@@ -337,6 +352,7 @@
       <h2>Абонентам</h2>
       <ul>
         <li><a href="/borisoglebsk-teploseti/pokazaniya.html">Передать показания</a></li>
+        <li><a href="/borisoglebsk-teploseti/oplata.html">Оплата и квитанция</a></li>
         <li><a href="/borisoglebsk-teploseti/dogovor.html">Заключить договор</a></li>
         <li><a href="/borisoglebsk-teploseti/obrashcheniya.html">Написать обращение</a></li>
         <li><a href="/borisoglebsk-teploseti/tarify.html">Тарифы на тепловую энергию</a></li>
@@ -351,6 +367,7 @@
         <li><a href="/borisoglebsk-teploseti/raskrytie.html">Раскрытие информации</a></li>
         <li><a href="/borisoglebsk-teploseti/docs/ustav-mup-borisoglebskie-teploseti.pdf">Устав</a></li>
         <li><a href="/borisoglebsk-teploseti/zakupki.html">Закупки</a></li>
+        <li><a href="/borisoglebsk-teploseti/protivodeystvie-korrupcii.html">Противодействие коррупции</a></li>
         <li><a href="/borisoglebsk-teploseti/kontakty.html">Контакты и режим работы</a></li>
         <li><a href="/borisoglebsk-teploseti/politika.html">Обработка персональных данных</a></li>
       </ul>
@@ -373,6 +390,6 @@
   </div>
 </footer>
 
-<script src="/borisoglebsk-teploseti/js/main.js?v=da6e6498" defer></script>
+<script src="/borisoglebsk-teploseti/js/main.js?v=1ac8e9ab" defer></script>
 </body>
 </html>

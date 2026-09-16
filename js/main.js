@@ -9,6 +9,9 @@
 
   var VISION_KEY = 'bgts-vision';
   var root = document.documentElement;
+  // Демо-копия на GitHub Pages открывается не из корня домена, а из
+  // /borisoglebsk-teploseti/ — сборка передаёт этот путь в data-base.
+  var BASE = root.getAttribute('data-base') || '';
 
   function applyVision(state) {
     if (!state || !state.on) {
@@ -181,6 +184,12 @@
 
   document.querySelectorAll('form[data-ajax]').forEach(function (form) {
     form.addEventListener('submit', function (e) {
+      if (root.getAttribute('data-demo') === '1') {
+        e.preventDefault();
+        setNote(form, 'err', 'Это демо-версия сайта',
+          'Формы здесь не отправляются. Показания и обращения принимает официальный сайт borisoglebskteplo.ru.');
+        return;
+      }
       var fields = form.querySelectorAll('.control[required], .control[data-validate], input[type="checkbox"][required]');
       var firstBad = null;
       fields.forEach(function (f) { if (!validateField(f) && !firstBad) firstBad = f; });
@@ -247,7 +256,7 @@
         })
         .catch(function () {
           setNote(form, 'err', 'Нет связи с сервером',
-            'Проверьте подключение к интернету и попробуйте ещё раз. Показания также принимаются по телефону 8 (47354) 6-05-52.');
+            'Проверьте подключение к интернету и попробуйте ещё раз. Показания также принимает абонентский отдел по телефону — он указан в разделе «Контакты».');
         })
         .finally(function () {
           if (btn) { btn.disabled = false; btn.innerHTML = label; }
@@ -480,7 +489,7 @@
 
   var needsContent = document.querySelector('[data-outages], [data-news], #announcement');
   if (needsContent && window.fetch) {
-    fetch('/api/content', { headers: { Accept: 'application/json' } })
+    fetch(BASE + '/api/content', { headers: { Accept: 'application/json' } })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         renderAnnouncement(data.announcement);
@@ -491,7 +500,7 @@
       .catch(function () {
         document.querySelectorAll('[data-outages]').forEach(function (el) {
           var empty = document.querySelector(el.dataset.emptyTarget || '#outages-empty');
-          if (empty) { empty.hidden = false; empty.querySelector('p').textContent = 'Не удалось загрузить сведения о работах. Уточните по телефону диспетчерской 8 (47354) 6-05-52.'; }
+          if (empty) { empty.hidden = false; empty.querySelector('p').textContent = 'Не удалось загрузить сведения о работах. Телефон аварийно-диспетчерской службы указан в разделе «Контакты».'; }
           el.hidden = true;
         });
       });
@@ -561,9 +570,111 @@
     var here = window.location.pathname.replace(/\/index\.html$/, '/');
     document.querySelectorAll('.nav__link').forEach(function (link) {
       var href = link.getAttribute('href');
-      if (href === here || (href !== '/' && here.indexOf(href) === 0)) {
+      if (href === here || (href !== BASE + '/' && here.indexOf(href) === 0)) {
         link.setAttribute('aria-current', 'page');
       }
     });
   });
+
+  /* ---------- 10. Движение ---------- */
+
+  // Появление блоков при прокрутке, пауза сцены главного экрана, когда её не
+  // видно, и один сигнал блока аварийной службы. Только если человек не просил
+  // уменьшить движение и не включил версию для слабовидящих.
+  (function () {
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !('IntersectionObserver' in window)) return;
+
+    var scene = document.querySelector('.hero__scene');
+    var stopBtn = document.querySelector('[data-scene-toggle]');
+    if (scene && stopBtn) {
+      var STOP_KEY = 'bgts-scene-stopped';
+      var setStopped = function (stopped) {
+        if (stopped) scene.setAttribute('data-stopped', ''); else scene.removeAttribute('data-stopped');
+        stopBtn.setAttribute('aria-pressed', String(stopped));
+        stopBtn.title = stopped ? 'Запустить анимацию' : 'Остановить анимацию';
+      };
+      var wasStopped = false;
+      try { wasStopped = localStorage.getItem(STOP_KEY) === '1'; } catch (e) { /* приватный режим */ }
+      setStopped(wasStopped);
+      stopBtn.hidden = false;
+      stopBtn.addEventListener('click', function () {
+        var next = stopBtn.getAttribute('aria-pressed') !== 'true';
+        setStopped(next);
+        try { localStorage.setItem(STOP_KEY, next ? '1' : '0'); } catch (e) { /* приватный режим */ }
+      });
+    }
+    if (scene) {
+      new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) entry.target.removeAttribute('data-paused');
+          else entry.target.setAttribute('data-paused', '');
+        });
+      }).observe(scene);
+    }
+
+    if (root.getAttribute('data-vision') === 'on') return;
+
+    var SELECTOR = '.sec-head, .svc, .card, .panel, .aside-block, .emergency, .steps > li, .acc, .doclist > li, .tablewrap, .contact-card';
+    var fold = window.innerHeight * 0.92;
+    var perParent = [];
+
+    function indexIn(parent) {
+      for (var k = 0; k < perParent.length; k++) {
+        if (perParent[k].parent === parent) return perParent[k].count++;
+      }
+      perParent.push({ parent: parent, count: 1 });
+      return 0;
+    }
+
+    function reveal(el) {
+      observer.unobserve(el);
+      el.classList.add('is-in');
+      var i = Number(el.style.getPropertyValue('--i')) || 0;
+      if (el.classList.contains('emergency')) {
+        setTimeout(function () { el.classList.add('is-attn'); }, 450);
+        el.addEventListener('animationend', function done(ev) {
+          if (ev.animationName !== 'attn-ring') return;
+          el.classList.remove('is-attn');
+          el.removeEventListener('animationend', done);
+        });
+      }
+      // Снимаем служебные классы, чтобы вернуть обычные переходы наведения
+      setTimeout(function () {
+        el.classList.remove('reveal', 'is-in');
+        el.style.removeProperty('--i');
+      }, 1150 + i * 70);
+    }
+
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) reveal(entry.target);
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+
+    // Страховка: если наблюдатель по какой-то причине не сообщил о блоке,
+    // раз в 2 секунды проверяем, не остался ли скрытым блок прямо на экране.
+    var pending = [];
+    function sweep() {
+      var h = window.innerHeight;
+      pending = pending.filter(function (el) {
+        if (!el.classList.contains('reveal') || el.classList.contains('is-in')) return false;
+        var r = el.getBoundingClientRect();
+        if (r.top < h && r.bottom > 0) { reveal(el); return false; }
+        return true;
+      });
+      if (pending.length) setTimeout(sweep, 2000);
+    }
+
+    document.querySelectorAll(SELECTOR).forEach(function (el) {
+      if (el.closest('[hidden]')) return;
+      if (el.parentElement && el.parentElement.closest(SELECTOR)) return; // вложенные появляются вместе с родителем
+      if (el.getBoundingClientRect().top <= fold) return; // первый экран не прячем
+      el.style.setProperty('--i', String(Math.min(indexIn(el.parentElement), 5)));
+      el.classList.add('reveal');
+      observer.observe(el);
+      pending.push(el);
+    });
+    if (pending.length) setTimeout(sweep, 2000);
+  })();
 })();

@@ -104,7 +104,9 @@ html {
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+  /* iteration-count обязателен: без него бесконечная анимация с длительностью
+     0,001 мс не останавливается, а мелькает с частотой кадров. */
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
 
 body {
@@ -154,6 +156,10 @@ main { flex: 1 0 auto; }
 
 .stack > * + * { margin-top: var(--s4); }
 .grid { display: grid; gap: var(--s4); }
+/* По умолчанию ячейка грида не может быть уже своего содержимого. На форме
+   обращений из-за этого длинный <select> с темами растягивал колонку, и вся
+   страница на телефоне ехала вбок на 20 px. */
+.grid > * { min-width: 0; }
 @media (min-width: 700px)  { .grid--2 { grid-template-columns: 1fr 1fr; } }
 @media (min-width: 980px)  { .grid--3 { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 980px)  { .grid--sidebar { grid-template-columns: minmax(0,1fr) 320px; gap: var(--s6); align-items: start; } }
@@ -340,6 +346,7 @@ html[data-vision="on"] .svc__ico { background: transparent; border: 2px solid va
 .badge {
   display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
   border-radius: 999px; font-size: .82rem; font-weight: 600; line-height: 1.5; white-space: nowrap;
+  max-width: 100%;
   border: 1px solid transparent;
 }
 .badge--danger  { background: var(--red-050);   color: var(--red-700);   border-color: #f0c3c7; }
@@ -348,6 +355,10 @@ html[data-vision="on"] .svc__ico { background: transparent; border: 2px solid va
 .badge--info    { background: var(--blue-050);  color: var(--navy-700);  border-color: #c5d9ea; }
 .badge--dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: 0 0 auto; }
 html[data-vision="on"] .badge { background: transparent; color: var(--c-text); border: 2px solid var(--c-border); }
+
+/* На телефоне подпись статуса («Гидравлические испытания») не помещалась
+   в строку и вылезала за край карточки — разрешаем перенос. */
+@media (max-width: 720px) { .badge { white-space: normal; } }
 
 /* ---------- 15. Полоса срочного объявления ---------- */
 .alertbar { background: var(--red-700); color: #fff; }
@@ -384,17 +395,48 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 
 /* На узких экранах таблицы превращаются в карточки */
 @media (max-width: 720px) {
+  /* Пока таблица остаётся display: table, ширину ей задаёт самая длинная
+     строка: полное наименование предприятия растягивало карточку раскрытия
+     до 1000 px, и реквизиты приходилось листать вбок. Блочная раскладка
+     возвращает width: 100% и перенос строк. */
+  .table--stack, .table--stack tbody { display: block; }
+  /* Подпись таблицы внутри блочной раскладки иначе сжимается
+     в узкую колонку и половина карточки остаётся пустой. */
+  .table--stack caption { display: block; padding-bottom: var(--s3); }
   .table--stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .table--stack tr { display: block; border-bottom: 1px solid var(--c-border); padding: var(--s3) 0; }
   .table--stack tr:last-child { border-bottom: 0; }
-  .table--stack td { display: flex; gap: var(--s3); border: 0; padding: 5px var(--s4); text-align: left; }
+  .table--stack td { display: flex; gap: var(--s3); border: 0; padding: 5px var(--s4); text-align: left; overflow-wrap: anywhere; }
   .table--stack td::before { content: attr(data-th) ": "; font-weight: 700; color: var(--c-text-soft); flex: 0 0 42%; font-size: .88rem; }
-  .table--stack td.num { text-align: left; }
+  /* Счёт и ИНН длиннее колонки: без переноса они вылезали за край карточки. */
+  .table--stack td.num { text-align: left; white-space: normal; }
+  /* В таблицах «Показатель — Значение» заголовок строки уже стоит над
+     значением, а подпись «Значение:» съедала 42 % ширины: полное
+     наименование предприятия растягивалось на восемь строк. */
+  .table--stack th[scope="row"] { display: block; border: 0; padding: 5px var(--s4); }
+  .table--stack th[scope="row"] + td:only-of-type::before { content: none; }
+  .table--stack th[scope="row"] + td:only-of-type { padding-top: 0; }
+}
+
+/* Таблица работ — пять колонок: до 980 px она не помещалась, и последняя
+   («Плановое окончание») уезжала за край с незаметной прокруткой. Поэтому
+   карточки здесь включаются раньше, чем у остальных таблиц. */
+@media (min-width: 721px) and (max-width: 979px) {
+  .table--stack-wide, .table--stack-wide tbody { display: block; }
+  .table--stack-wide caption { display: block; padding-bottom: var(--s3); }
+  .table--stack-wide thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .table--stack-wide tr { display: block; border-bottom: 1px solid var(--c-border); padding: var(--s3) 0; }
+  .table--stack-wide tr:last-child { border-bottom: 0; }
+  .table--stack-wide td { display: flex; gap: var(--s3); border: 0; padding: 5px var(--s4); text-align: left; overflow-wrap: anywhere; }
+  .table--stack-wide td::before { content: attr(data-th) ": "; font-weight: 700; color: var(--c-text-soft); flex: 0 0 25%; font-size: .88rem; }
+  .table--stack-wide td.num { text-align: left; white-space: normal; }
 }
 
 /* ---------- 18. Формы ---------- */
 .form { max-width: 720px; }
-.form fieldset { border: 0; padding: 0; margin: 0 0 var(--s6); }
+/* min-width: 0 обязателен: браузер задаёт fieldset минимальную ширину по
+   содержимому, из-за чего длинный список тем распирал форму на телефоне. */
+.form fieldset { border: 0; padding: 0; margin: 0 0 var(--s6); min-width: 0; }
 .form legend { font-size: 1.15rem; font-weight: 700; color: var(--c-brand); padding: 0; margin-bottom: var(--s2); }
 .form legend + .hint { margin-top: -4px; margin-bottom: var(--s4); }
 
@@ -478,7 +520,10 @@ html[data-vision="on"] .doc__ico { color: var(--c-text); }
 .acc + .acc { margin-top: var(--s3); }
 .acc summary { display: flex; align-items: center; gap: var(--s3); padding: var(--s4) var(--s5); font-weight: 600; cursor: pointer; color: var(--c-brand); list-style: none; min-height: 56px; }
 .acc summary::-webkit-details-marker { display: none; }
-.acc summary::after { content: ""; margin-left: auto; width: 11px; height: 11px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-3px); transition: transform var(--dur) var(--ease); flex: 0 0 auto; }
+/* Стрелка — квадрат, повёрнутый на 45°: её угол выходит примерно на 3px за
+   границы бокса, а у .acc стоит overflow: hidden. Без зазора справа угол
+   срезается — заметно там, где у summary обнулены боковые отступы. */
+.acc summary::after { content: ""; margin-left: auto; margin-right: 3px; width: 11px; height: 11px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-3px); transition: transform var(--dur) var(--ease); flex: 0 0 auto; }
 .acc[open] summary::after { transform: rotate(-135deg) translateY(-3px); }
 .acc summary:hover { background: var(--blue-050); }
 .acc__body { padding: 0 var(--s5) var(--s5); border-top: 1px solid var(--line-soft); padding-top: var(--s4); }
@@ -506,7 +551,9 @@ html[data-vision="on"] .steps > li::before { background: transparent; color: var
 html[data-vision="on"] .contact-card__ico { background: transparent; border: 2px solid var(--c-border); }
 .contact-card__body { min-width: 0; }
 .contact-card__label { display: block; font-size: .84rem; text-transform: uppercase; letter-spacing: .04em; color: var(--c-text-soft); }
-.contact-card__value { font-size: 1.1rem; font-weight: 700; color: var(--c-brand); text-decoration: none; }
+/* Длинная почта вида borisoglebskteplo@govvrn.ru не имеет мест переноса и
+   вылезала за колонку — разрешаем разрыв в любом месте. */
+.contact-card__value { font-size: 1.1rem; font-weight: 700; color: var(--c-brand); text-decoration: none; display: block; overflow-wrap: anywhere; }
 a.contact-card__value:hover { color: var(--c-link); }
 .contact-card__note { display: block; font-size: .88rem; color: var(--c-text-soft); margin-top: 2px; }
 
@@ -572,7 +619,8 @@ html[data-vision="on"] .footer__bottom { border-top: 2px solid var(--c-border); 
 .empty p { margin-inline: auto; }
 
 @media print {
-  .topbar, .vision-panel, .nav, .navtoggle, .footer, .hero__art, .form-actions, .alertbar { display: none !important; }
+  .topbar, .vision-panel, .nav, .navtoggle, .footer, .hero__art, .hero__scene, .scene-toggle, .demo-banner, .form-actions, .alertbar { display: none !important; }
+  .reveal { opacity: 1 !important; transform: none !important; }
   body { background: #fff; font-size: 12pt; }
   a[href^="http"]::after { content: " (" attr(href) ")"; font-size: .85em; }
   .card, .panel, .tablewrap { box-shadow: none; border: 1px solid #999; }
@@ -664,3 +712,191 @@ tbody th[scope="row"] { font-weight: 700; color: var(--c-text); background: tran
    Лёгкий ореол отделяет его от полотна, не превращая в белую плашку. */
 .footer__mark { filter: drop-shadow(0 0 3px rgba(255, 255, 255, .28)); }
 html[data-vision="on"] .footer__mark { filter: grayscale(1); }
+
+/* ---------- 30. Движение ---------- */
+/* Принцип: движение объясняет, а не развлекает. Одна сцена на главном экране
+   (тепло идёт от котельной к домам), мягкое появление блоков при прокрутке,
+   отклик карточек и кнопок на нажатие. Всё движение выключено в версии для
+   слабовидящих и при «уменьшить движение» в настройках телефона.
+   Анимируются только opacity и transform — это дёшево даже для слабых телефонов. */
+:root {
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-in: cubic-bezier(.7, 0, .84, 0);
+}
+
+/* 30.1 Заголовки без висячих слов */
+h1, h2, h3 { text-wrap: balance; }
+p, li { text-wrap: pretty; }
+
+/* 30.2 Сцена главного экрана: котельная, дома, теплотрасса */
+.hero--scene { --scene-h: clamp(112px, 12vw, 176px); }
+.hero--scene .hero__in { padding-bottom: calc(var(--scene-h) + var(--s5)); }
+html[data-vision="on"] .hero--scene .hero__in { padding-bottom: var(--s6); }
+.hero__scene {
+  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+  display: block; width: 100%; max-width: 1600px; height: var(--scene-h);
+  pointer-events: none;
+}
+@media (min-width: 1600px) {
+  .hero__scene {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  }
+}
+.hero__scene .bld { fill: #16395a; stroke: rgba(127, 178, 221, .42); stroke-width: 1.25; stroke-linejoin: round; }
+.hero__scene .edge { fill: none; stroke: rgba(127, 178, 221, .42); stroke-width: 1.25; }
+.hero__scene .win { fill: #0f2d48; }
+.hero__scene .w { fill: #f6b87a; opacity: var(--o, .85); }
+.hero__scene .w2 { fill: #ffdcae; }
+.hero__scene .fire { fill: #f08a45; opacity: .8; }
+.hero__scene .ground { fill: none; stroke: rgba(127, 178, 221, .3); stroke-width: 1.5; }
+.hero__scene .support { fill: none; stroke: rgba(127, 178, 221, .3); stroke-width: 2; }
+.hero__scene .pipe { fill: none; stroke: #22507a; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+.hero__scene .pipe-line { fill: none; stroke: rgba(127, 178, 221, .5); stroke-width: 1.5; stroke-linejoin: round; }
+.hero__scene .pulse {
+  fill: none; stroke: #ffc285; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 38 2000; stroke-dashoffset: 38; opacity: 0;
+}
+.hero__scene .pulse--glow { stroke: rgba(255, 140, 60, .4); stroke-width: 10; }
+.hero__scene .steam circle { fill: rgba(203, 218, 231, .35); opacity: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-vision="on"]) .hero__scene .w { opacity: 0; animation: heat-window .9s var(--ease-out) var(--d, 1s) forwards; }
+  html:not([data-vision="on"]) .hero__scene .w.tw {
+    animation: heat-window .9s var(--ease-out) var(--d, 1s) forwards,
+               heat-twinkle 17s ease-in-out calc(var(--d, 1s) + 5s) infinite;
+  }
+  .hero__scene .fire { animation: heat-fire 3.2s ease-in-out infinite alternate; }
+  .hero__scene .pulse { opacity: 1; animation: heat-flow 6.5s cubic-bezier(.45, .05, .55, .95) 1.2s infinite; }
+  .hero__scene .pulse--l { animation-duration: 5.2s; animation-delay: 1.5s; }
+  .hero__scene .steam circle { transform-box: fill-box; transform-origin: center; animation: heat-steam 6s ease-out infinite; }
+  .hero__scene .steam circle:nth-child(2) { animation-delay: 2s; }
+  .hero__scene .steam circle:nth-child(3) { animation-delay: 4s; }
+  /* Экран прокручен дальше сцены — не тратим батарею телефона */
+  .hero__scene[data-paused] * { animation-play-state: paused !important; }
+  /* Человек остановил анимацию: сцена застывает в конечном виде, окна светятся */
+  .hero__scene[data-stopped] * { animation: none !important; }
+  html:not([data-vision="on"]) .hero__scene[data-stopped] .w { opacity: var(--o, .85); }
+}
+
+/* Кнопка остановки. Бесконечная анимация дольше 5 секунд должна
+   останавливаться по желанию посетителя: WCAG 2.2.2, на нём основан
+   ГОСТ Р 52872-2019. Скрипт показывает кнопку, только когда движение разрешено. */
+.scene-toggle {
+  position: absolute; z-index: 2;
+  right: max(var(--s4), calc((100% - var(--wrap)) / 2 + var(--s5)));
+  bottom: calc(var(--scene-h) - 44px);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; padding: 0; border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, .3); background: rgba(12, 31, 51, .6); color: #dbe7f1;
+  cursor: pointer; transition: background-color .2s var(--ease), border-color .2s var(--ease);
+}
+.scene-toggle[hidden] { display: none; }
+.scene-toggle:hover { background: rgba(22, 59, 88, .9); border-color: rgba(255, 255, 255, .55); }
+.scene-toggle__play { display: none; }
+.scene-toggle[aria-pressed="true"] .scene-toggle__pause { display: none; }
+.scene-toggle[aria-pressed="true"] .scene-toggle__play { display: inline; }
+@media (prefers-reduced-motion: reduce) { .scene-toggle { display: none !important; } }
+@keyframes heat-window { to { opacity: var(--o, .85); } }
+@keyframes heat-twinkle { 0%, 86%, 100% { opacity: var(--o, .85); } 90%, 94% { opacity: .12; } }
+@keyframes heat-fire { from { opacity: .55; } to { opacity: .95; } }
+@keyframes heat-flow { 0% { stroke-dashoffset: 38; } 72%, 100% { stroke-dashoffset: -1000; } }
+@keyframes heat-steam {
+  0% { opacity: 0; transform: translate(0, 0) scale(.6); }
+  18% { opacity: .6; }
+  100% { opacity: 0; transform: translate(16px, -42px) scale(1.9); }
+}
+
+/* 30.3 Первый экран появляется по очереди: заголовок, текст, кнопки, факты */
+.hero__in > div:first-child > :nth-child(2) { --rise-d: .08s; }
+.hero__in > div:first-child > :nth-child(3) { --rise-d: .16s; }
+.hero__facts > .fact:nth-child(1) { --rise-d: .22s; }
+.hero__facts > .fact:nth-child(2) { --rise-d: .3s; }
+.hero__facts > .fact:nth-child(3) { --rise-d: .38s; }
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-vision="on"]) .hero__in > div:first-child > *,
+  html:not([data-vision="on"]) .hero__facts > .fact {
+    animation: rise-in .7s var(--ease-out) var(--rise-d, 0s) both;
+  }
+}
+@keyframes rise-in { from { opacity: 0; transform: translateY(12px); } }
+
+/* 30.4 Появление блоков при прокрутке. Класс .reveal ставит скрипт и только
+   тем блокам, что ниже первого экрана: без JS всё видно сразу. После
+   появления скрипт снимает классы, чтобы вернуть обычные переходы наведения. */
+.reveal { opacity: 0; transform: translateY(16px); }
+.reveal.is-in {
+  opacity: 1; transform: none;
+  transition: opacity .6s var(--ease-out), transform .6s var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+.steps > li.reveal.is-in::before { animation: pop-in .5s var(--ease-out) calc(var(--i, 0) * 70ms) both; }
+.steps > li.reveal.is-in::after { transform-origin: top; animation: draw-down .8s var(--ease-out) calc(var(--i, 0) * 70ms + .25s) both; }
+@keyframes pop-in { from { opacity: 0; transform: scale(.6); } }
+@keyframes draw-down { from { transform: scaleY(0); } }
+html[data-vision="on"] .reveal { opacity: 1 !important; transform: none !important; }
+@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1 !important; transform: none !important; } }
+
+/* 30.5 Отклик карточек и кнопок */
+.svc__ico { transition: transform .35s var(--ease-out), background-color .2s var(--ease), color .2s var(--ease); }
+.svc__cta .ico { transition: transform .3s var(--ease-out); }
+@media (hover: hover) {
+  .svc:hover .svc__ico { transform: translateY(-2px) scale(1.05); }
+  .svc:hover .svc__cta .ico { transform: translateX(4px); }
+}
+.svc:focus-visible .svc__cta .ico { transform: translateX(4px); }
+.svc:active { transform: translateY(0) scale(.99); box-shadow: var(--shadow-1); }
+.btn:active { transform: translateY(1px) scale(.985); }
+html[data-vision="on"] .svc__ico,
+html[data-vision="on"] .svc__cta .ico,
+html[data-vision="on"] .svc:active,
+html[data-vision="on"] .btn:active { transform: none; }
+
+/* Полоска под пунктом меню вырастает от центра при наведении */
+@media (min-width: 980px) and (hover: hover) {
+  .nav__link { position: relative; }
+  .nav__link:not([aria-current="page"])::after {
+    content: ""; position: absolute; left: var(--s4); right: var(--s4); bottom: -4px; height: 4px;
+    background: rgba(231, 238, 245, .5); transform: scaleX(0); transition: transform .3s var(--ease-out);
+  }
+  .nav__link:not([aria-current="page"]):hover::after { transform: scaleX(1); }
+  html[data-vision="on"] .nav__link::after { display: none; }
+}
+
+/* 30.6 Аккордеон раскрывается плавно (браузеры без поддержки — как раньше) */
+@supports (interpolate-size: allow-keywords) {
+  :root { interpolate-size: allow-keywords; }
+  .acc::details-content {
+    block-size: 0; overflow-y: clip;
+    transition: block-size .35s var(--ease-out), content-visibility .35s allow-discrete;
+  }
+  .acc[open]::details-content { block-size: auto; }
+}
+.acc summary::after { transition: transform .3s var(--ease-out); }
+
+/* 30.7 Аварийная служба: один мягкий сигнал, когда блок появляется на экране */
+.emergency.is-attn { animation: attn-ring 1.6s var(--ease-out) 2; }
+@keyframes attn-ring {
+  from { box-shadow: 0 0 0 0 rgba(167, 29, 42, .45); }
+  to { box-shadow: 0 0 0 16px rgba(167, 29, 42, 0); }
+}
+html[data-vision="on"] .emergency { animation: none !important; }
+
+/* 30.8 Плавный переход между страницами (Chrome, Edge, Safari 18+; остальные — как раньше) */
+@view-transition { navigation: auto; }
+@media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } }
+.topbar { view-transition-name: site-topbar; }
+.masthead { view-transition-name: site-masthead; }
+.nav { view-transition-name: site-nav; }
+::view-transition-old(root) { animation: .18s var(--ease-in) both vt-out; }
+::view-transition-new(root) { animation: .32s var(--ease-out) both vt-in; }
+@keyframes vt-out { to { opacity: 0; } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(6px); } }
+html[data-vision="on"]::view-transition-old(root),
+html[data-vision="on"]::view-transition-new(root) { animation: none; }
+
+/* ---------- 31. Демо-версия ---------- */
+/* Полоса видна только в демо-сборке (tools/build-demo.js) */
+.demo-banner { background: #fff6e0; color: #5c3d00; border-bottom: 1px solid #ecd39a; font-size: .9rem; line-height: 1.45; }
+.demo-banner .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--s3); padding-block: 10px; }
+.demo-banner a { color: inherit; font-weight: 700; }
