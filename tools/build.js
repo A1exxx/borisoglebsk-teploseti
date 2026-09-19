@@ -63,6 +63,7 @@ data.assets = {
   css: assetHash(path.join('css', 'style.css')),
   js: assetHash(path.join('js', 'main.js')),
   thermal: assetHash(path.join('js', 'hero-thermal.js')),
+  iso: assetHash(path.join('js', 'hero-iso.js')),
 };
 const layout = fs.readFileSync(path.join(SRC, 'layout.html'), 'utf8');
 
