@@ -916,6 +916,8 @@ html[data-vision="on"]::view-transition-new(root) { animation: none; }
 .demo-banner__switch a { padding: 3px 12px; border: 1px solid #d9b870; border-radius: 999px; text-decoration: none; }
 .demo-banner__switch a:hover { background: #fdebc2; }
 .demo-banner__switch a[aria-current="page"] { background: #5c3d00; border-color: #5c3d00; color: #fff6e0; }
+.demo-banner__switch { flex-wrap: wrap; }
+@media (max-width: 559px) { .demo-banner__switch { margin-left: 0; } .demo-banner__switch a { padding: 3px 10px; } }
 
 /* ---------- 32. Вариант 2: «пульт диспетчера» ---------- */
 /* Первый экран в стиле диспетчерской: схема трасс со свечением на WebGL
@@ -1315,3 +1317,17 @@ html[data-vision="on"] .reveal { filter: none !important; }
 }
 html[data-vision="on"] .footer { background-image: none; }
 .scroll-progress { background: linear-gradient(90deg, var(--iso-cold), var(--iso-warm)); height: 2px; }
+
+/* 33.7 После аудита: плитки: иконка рядом с заголовком, а не плашкой над ним;
+   подписи панели — основным шрифтом, моноширинный остаётся для времени */
+.svc { display: grid; grid-template-columns: 44px minmax(0, 1fr); column-gap: 14px; align-items: center; }
+.svc__ico { width: 44px; height: 44px; margin: 0; grid-row: 1; }
+.svc h3 { grid-column: 2; margin: 0; }
+.svc p, .svc__cta { grid-column: 1 / -1; }
+.svc p { margin-top: var(--s3); }
+@media (min-width: 1040px) {
+  .svc--wide { display: grid; grid-template-rows: auto 1fr auto; align-items: start; }
+  .svc--wide .svc__ico, .svc--wide h3 { align-self: center; }
+}
+.hero--iso .status__title, .hero--iso .status dt { font-family: var(--font-ui); font-weight: 600; letter-spacing: .06em; }
+.hero--iso .status__title { font-size: .82rem; }
