@@ -916,6 +916,8 @@ html[data-vision="on"]::view-transition-new(root) { animation: none; }
 .demo-banner__switch a { padding: 3px 12px; border: 1px solid #d9b870; border-radius: 999px; text-decoration: none; }
 .demo-banner__switch a:hover { background: #fdebc2; }
 .demo-banner__switch a[aria-current="page"] { background: #5c3d00; border-color: #5c3d00; color: #fff6e0; }
+.demo-banner__switch { flex-wrap: wrap; }
+@media (max-width: 559px) { .demo-banner__switch { margin-left: 0; } .demo-banner__switch a { padding: 3px 10px; } }
 
 /* ---------- 32. Вариант 2: «пульт диспетчера» ---------- */
 /* Первый экран в стиле диспетчерской: схема трасс со свечением на WebGL
@@ -1317,3 +1319,38 @@ html[data-vision="on"] .hero--twin ~ .section .sec-head h2::before { display: no
 html[data-vision="on"] .svc__ico { background: var(--c-surface); color: var(--c-text); }
 
 .scroll-progress { background: linear-gradient(90deg, var(--twin-cyan), var(--twin-warm)); height: 2px; }
+
+/* 33.5 После аудита: сервисы главной — строками с номерами, как оглавление
+   технического паспорта, а не одинаковыми карточками с иконкой сверху */
+.hero--twin ~ .section .services { display: block; counter-reset: svc; border-top: 1px solid var(--c-border); }
+@media (min-width: 1040px) { .hero--twin ~ .section .services { display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--s7); } }
+.hero--twin ~ .section .svc {
+  counter-increment: svc; position: relative;
+  display: grid; grid-template-columns: 3rem minmax(0, 1fr) auto; column-gap: var(--s4); align-items: start;
+  padding: var(--s5) var(--s3) var(--s5) 0; background: none; border: 0; border-bottom: 1px solid var(--c-border);
+  border-radius: 0; box-shadow: none; transform: none; grid-row: auto;
+  transition: background-color .2s var(--ease);
+}
+.hero--twin ~ .section .svc::before {
+  content: counter(svc, decimal-leading-zero); position: static; inset: auto; padding: 0;
+  background: none; -webkit-mask: none; mask: none; opacity: 1; border-radius: 0;
+  grid-row: 1 / span 3; font: 500 .9rem/1.75 var(--font-mono); letter-spacing: .08em; color: var(--heat-600);
+}
+.hero--twin ~ .section .svc::after { display: none; }
+.hero--twin ~ .section .svc h3, .hero--twin ~ .section .svc p, .hero--twin ~ .section .svc__cta { grid-column: 2; }
+.hero--twin ~ .section .svc h3 { margin-bottom: 6px; }
+.hero--twin ~ .section .svc__ico {
+  grid-column: 3; grid-row: 1 / span 3; align-self: center; margin: 0;
+  width: 44px; height: 44px; background: none; color: var(--navy-600); border: 1px solid var(--c-border); border-radius: 50%;
+}
+.hero--twin ~ .section .svc--accent .svc__ico { color: var(--heat-700); border-color: rgba(154, 52, 18, .35); }
+.hero--twin ~ .section .svc:hover { background: linear-gradient(90deg, rgba(47, 150, 214, .07), transparent 70%); transform: none; box-shadow: none; }
+.hero--twin ~ .section .svc:hover .svc__ico { transform: none; border-color: var(--navy-600); }
+@media (max-width: 639px) {
+  .hero--twin ~ .section .svc { grid-template-columns: 2.4rem minmax(0, 1fr); }
+  .hero--twin ~ .section .svc__ico { display: none; }
+}
+html[data-vision="on"] .hero--twin ~ .section .svc::before { color: var(--c-text); font-family: var(--font-ui); }
+html[data-vision="on"] .hero--twin ~ .section .svc { border-bottom-width: 2px; }
+/* Ссылка на условия OpenStreetMap — зона нажатия не меньше 24 пикселей */
+.hud__osm { display: inline-block; padding-block: 5px; }
