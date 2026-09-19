@@ -47,6 +47,10 @@
     });
     // Без производных линии не сгладить — тогда лучше спокойный фон
     if (!gl || !gl.getExtension('OES_standard_derivatives')) return;
+    // Видеокарты нет и WebGL рисует процессор — показываем один неподвижный кадр
+    var dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    var gpu = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
+    if (/swiftshader|llvmpipe|software|basic render/i.test(gpu)) still = true;
 
     /* ---------- Шейдер ---------- */
 
