@@ -1331,3 +1331,5 @@ html[data-vision="on"] .footer { background-image: none; }
 }
 .hero--iso .status__title, .hero--iso .status dt { font-family: var(--font-ui); font-weight: 600; letter-spacing: .06em; }
 .hero--iso .status__title { font-size: .82rem; }
+/* Шестая плитка на широком экране оставалась одна с пустотой справа — растягиваем на всю ширину */
+@media (min-width: 1040px) { .svc:last-child:nth-child(6) { grid-column: 1 / -1; } }
