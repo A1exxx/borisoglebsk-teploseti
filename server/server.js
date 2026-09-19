@@ -120,6 +120,48 @@ function cleanMultiline(value, maxLen = 5000) {
 const RE_PHONE = /^\+?[\d\s().-]{10,20}$/;
 const RE_EMAIL = /^[^@\s]+@[^@\s.]+\.[^@\s]{2,}$/;
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/** Сегодняшняя дата по Москве, «ГГГГ-ММ-ДД»: сервер живёт по UTC. */
+function moscowToday() {
+  return new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+/** Дата и время из панели приходят без часового пояса — это московское время. */
+function moscowTime(value) {
+  const v = String(value || '').trim();
+  if (!v) return NaN;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return Date.parse(`${v}T23:59:59+03:00`);
+  return Date.parse(/(Z|[+-]\d\d:?\d\d)$/i.test(v) ? v : `${v}+03:00`);
+}
+
+/** Ссылка «Подробнее» в объявлении: только свой путь или https-адрес. */
+function safeLink(value) {
+  const v = String(value || '').trim();
+  if (/^\/(?!\/)/.test(v) || /^https:\/\//i.test(v)) return v;
+  return '';
+}
+
+/**
+ * Контент для посетителей. Объявление после даты «показывать до» не
+ * показывается. Работа, у которой прошёл плановый срок окончания, считается
+ * завершённой — в панели она остаётся как была, чтобы при продлении работ
+ * было достаточно поменять дату.
+ */
+function publicContent(content) {
+  const a = content.announcement;
+  const announcement = a && a.text && (!a.until || a.until >= moscowToday()) ? a : null;
+  const now = Date.now();
+  const outages = (content.outages || []).map((o) => {
+    if (o.status === 'done') return o;
+    const end = moscowTime(o.end);
+    return Number.isFinite(end) && end < now ? { ...o, status: 'done' } : o;
+  });
+  return { ...content, announcement, outages };
+}
+
 function wantsJSON(req) {
   return req.xhr
     || req.get('X-Requested-With') === 'fetch'
@@ -146,7 +188,9 @@ function respond(req, res, { ok, ticket, message, errors, backTo }) {
     return res.status(ok ? 200 : 400).json({ ok, ticket, message, errors });
   }
   if (ok) {
-    const q = new URLSearchParams({ ticket: ticket || '', msg: message || '' });
+    // Текст благодарности страница берёт по виду заявки, а не из адреса:
+    // иначе по ссылке с чужим текстом его показал бы официальный сайт.
+    const q = new URLSearchParams({ ticket: ticket || '' });
     return res.redirect(303, `/spasibo.html?${q}`);
   }
   const q = new URLSearchParams({ error: message || 'Проверьте заполнение формы' });
@@ -234,6 +278,66 @@ app.use((req, res, next) => {
 
 app.use(express.urlencoded({ extended: false, limit: '256kb' }));
 app.use(express.json({ limit: '256kb' }));
+
+/* ---------- Страницы: объявление и номер заявки вставляет сервер ---------- */
+
+// Полоса объявления приходит уже в странице: раньше она появлялась после
+// загрузки и сдвигала весь первый экран вниз. Заодно её видят поисковики.
+// Номер заявки на «Заявка отправлена» тоже ставит сервер — встроенный скрипт
+// блокировала защита сайта (CSP), и без JavaScript номер не был виден.
+const PAGE_FILES = new Set(fs.readdirSync(PUBLIC_DIR).filter((f) => f.endsWith('.html')));
+const pageCache = new Map();
+
+async function pageHtml(file) {
+  if (process.env.NODE_ENV === 'production' && pageCache.has(file)) return pageCache.get(file);
+  const html = await fsp.readFile(path.join(PUBLIC_DIR, file), 'utf8');
+  pageCache.set(file, html);
+  return html;
+}
+
+const ANNOUNCE_OPEN = '<div class="alertbar alertbar--info" id="announcement" hidden>';
+
+function withAnnouncement(html, a) {
+  if (!a || !a.text || !html.includes(ANNOUNCE_OPEN)) return html;
+  const level = ['info', 'warn', 'danger'].includes(a.level) ? a.level : 'info';
+  let out = html
+    .replace(ANNOUNCE_OPEN, () => `<div class="alertbar alertbar--${level}" id="announcement">`)
+    .replace('<span data-announce-text></span>', () => `<span data-announce-text>${escapeHtml(a.text)}</span>`);
+  const link = safeLink(a.link);
+  if (link) out = out.replace('<a data-announce-link href="#" hidden>', () => `<a data-announce-link href="${escapeHtml(link)}">`);
+  return out;
+}
+
+const TICKET_RE = /^(ПУ|ОБ|ДГ|ЗВ)-\d{6}-\d{4}$/;
+const THANKS = {
+  ПУ: 'Показания приняты и переданы в абонентский отдел.',
+  ОБ: 'Обращение зарегистрировано. Срок рассмотрения — 30 дней со дня регистрации.',
+  ДГ: 'Заявка и документы приняты. Специалист свяжется с вами в течение 3 рабочих дней.',
+};
+
+function withTicket(html, value) {
+  const ticket = String(value || '').trim();
+  if (!TICKET_RE.test(ticket)) return html;
+  const thanks = THANKS[ticket.slice(0, 2)] || 'Заявка принята и передана специалисту.';
+  return html
+    .replace('<p id="ticket-line" hidden>', '<p id="ticket-line">')
+    .replace('id="ticket-value" style="font-size:1.3rem"></strong>', () => `id="ticket-value" style="font-size:1.3rem">${escapeHtml(ticket)}</strong>`)
+    .replace('<p id="message-line">Заявка принята и передана специалисту.</p>', () => `<p id="message-line">${escapeHtml(thanks)}</p>`);
+}
+
+app.get(/^\/(?:[\w-]+(?:\.html)?)?$/, async (req, res, next) => {
+  const name = req.path === '/' ? 'index' : req.path.slice(1).replace(/\.html$/, '');
+  const file = `${name}.html`;
+  if (!PAGE_FILES.has(file)) return next();
+  try {
+    let html = withAnnouncement(await pageHtml(file), publicContent(await readContent()).announcement);
+    if (file === 'spasibo.html') html = withTicket(html, req.query.ticket);
+    res.setHeader('Cache-Control', 'no-cache');
+    res.type('html').send(html);
+  } catch (err) {
+    next(err);
+  }
+});
 
 app.use(express.static(PUBLIC_DIR, {
   extensions: ['html'],
@@ -407,7 +511,7 @@ app.post('/api/contracts', formLimiter, upload.array('files', MAX_FILES), async 
 /* ---------- Публичный контент ---------- */
 
 app.get('/api/content', async (req, res) => {
-  const content = await readContent();
+  const content = publicContent(await readContent());
   res.setHeader('Cache-Control', 'no-cache');
   res.json(content);
 });
@@ -424,7 +528,25 @@ function sameSecret(a, b) {
   return crypto.timingSafeEqual(ha, hb);
 }
 
+// Подбор пароля: после 10 неверных попыток с одного адреса вход закрыт на 15 минут.
+// Запрос без пароля (первое окно входа в браузере) попыткой не считается.
+const ADMIN_MAX_FAILS = 10;
+const ADMIN_LOCK_MS = 15 * 60 * 1000;
+const adminFails = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, item] of adminFails) if (now > item.reset) adminFails.delete(ip);
+}, ADMIN_LOCK_MS).unref();
+
 function requireAdmin(req, res, next) {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  let fails = adminFails.get(ip);
+  if (fails && now > fails.reset) { adminFails.delete(ip); fails = null; }
+  if (fails && fails.count >= ADMIN_MAX_FAILS) {
+    res.setHeader('Retry-After', String(Math.ceil((fails.reset - now) / 1000)));
+    return res.status(429).type('text/plain; charset=utf-8').send('Слишком много неудачных попыток входа. Повторите через 15 минут.');
+  }
   const header = req.get('Authorization') || '';
   const [scheme, encoded] = header.split(' ');
   if (scheme === 'Basic' && encoded) {
@@ -432,7 +554,13 @@ function requireAdmin(req, res, next) {
     const sep = decoded.indexOf(':');
     const user = sep === -1 ? decoded : decoded.slice(0, sep);
     const pass = sep === -1 ? '' : decoded.slice(sep + 1);
-    if (sameSecret(user, ADMIN_USER) && sameSecret(pass, ADMIN_PASS)) return next();
+    if (sameSecret(user, ADMIN_USER) && sameSecret(pass, ADMIN_PASS)) {
+      adminFails.delete(ip);
+      return next();
+    }
+    if (!fails) { fails = { count: 0, reset: now + ADMIN_LOCK_MS }; adminFails.set(ip, fails); }
+    fails.count += 1;
+    if (fails.count >= ADMIN_MAX_FAILS) console.warn(`[admin] ${ip}: ${ADMIN_MAX_FAILS} неверных паролей подряд — вход закрыт на 15 минут`);
   }
   // Значение заголовка передаётся по HTTP как ASCII — кириллица в realm
   // приводит к ошибке «Invalid character in header content».
@@ -486,7 +614,13 @@ app.post('/api/admin/content', express.json({ limit: '512kb' }), async (req, res
   const body = req.body || {};
   const content = {
     announcement: body.announcement && clean(body.announcement.text, 400)
-      ? { text: clean(body.announcement.text, 400), level: clean(body.announcement.level, 10) || 'info', link: clean(body.announcement.link, 200) }
+      ? {
+        text: clean(body.announcement.text, 400),
+        level: clean(body.announcement.level, 10) || 'info',
+        link: safeLink(clean(body.announcement.link, 200)),
+        // «Показывать до» (включительно); пусто — пока не уберут вручную
+        until: /^\d{4}-\d{2}-\d{2}$/.test(clean(body.announcement.until, 10)) ? clean(body.announcement.until, 10) : '',
+      }
       : null,
     outages: Array.isArray(body.outages) ? body.outages.slice(0, 200).map((o) => ({
       id: clean(o.id, 40) || crypto.randomUUID(),

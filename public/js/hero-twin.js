@@ -353,7 +353,7 @@
     var edges = new Mesh(6); // pos3, seed, h, kind
     var spotPool = []; // центры домов — отсюда выбираются места, где загорится тепло
     var LIFT = 1.35; // дома чуть выше настоящих — иначе с высоты птичьего полёта объёма не видно
-    city.buildings.forEach(function (b) {
+    function addBuilding(b) {
       var r = b.ring;
       var n = r.length / 2;
       var hh = b.h * LIFT;
@@ -397,596 +397,631 @@
           edges.i.push(g0, g1);
         }
       }
-    });
-    walls.flush();
-    edges.flush();
-    if (!spotPool.length) return;
-
-    // Улицы — светящиеся ленты; в тёплом квартале по ним бегут огоньки
-    var roads = new Mesh(6); // x, z, side, d, major, along
-    city.roads.forEach(function (rd) {
-      var p = rd.pts;
-      var n = p.length / 3;
-      var w = rd.major ? 9 : 5.5;
-      roads.room(n * 4);
-      var along = 0;
-      for (var i = 0; i < n - 1; i++) {
-        var ax = p[i * 3]; var ay = p[i * 3 + 1]; var ad = p[i * 3 + 2];
-        var bx = p[i * 3 + 3]; var by = p[i * 3 + 4]; var bd = p[i * 3 + 5];
-        var ex = bx - ax; var ey = by - ay;
-        var len = Math.sqrt(ex * ex + ey * ey) || 1;
-        var ox = (-ey / len) * w; var oy = (ex / len) * w;
-        var v0 = roads.vert(ax + ox, -(ay + oy), 1, ad, rd.major, along);
-        var v1 = roads.vert(ax - ox, -(ay - oy), -1, ad, rd.major, along);
-        var v2 = roads.vert(bx + ox, -(by + oy), 1, bd, rd.major, along + len);
-        var v3 = roads.vert(bx - ox, -(by - oy), -1, bd, rd.major, along + len);
-        roads.i.push(v0, v1, v2, v1, v3, v2);
-        along += len;
-      }
-    });
-    roads.flush();
-
-    // Реки и железная дорога — ленты по земле
-    var water = new Mesh(5); // x, z, side, along, kind
-    function ribbon(line, kind, w) {
-      var p = line.pts;
-      var n = p.length / 2;
-      water.room(n * 4);
-      var along = 0;
-      for (var i = 0; i < n - 1; i++) {
-        var ax = p[i * 2]; var ay = p[i * 2 + 1];
-        var bx = p[i * 2 + 2]; var by = p[i * 2 + 3];
-        var ex = bx - ax; var ey = by - ay;
-        var len = Math.sqrt(ex * ex + ey * ey) || 1;
-        var ox = (-ey / len) * w; var oy = (ex / len) * w;
-        var v0 = water.vert(ax + ox, -(ay + oy), 1, along, kind);
-        var v1 = water.vert(ax - ox, -(ay - oy), -1, along, kind);
-        var v2 = water.vert(bx + ox, -(by + oy), 1, along + len, kind);
-        var v3 = water.vert(bx - ox, -(by - oy), -1, along + len, kind);
-        water.i.push(v0, v1, v2, v1, v3, v2);
-        along += len;
-      }
-    }
-    city.water.forEach(function (w) { ribbon(w, 0, w.w / 2); });
-    city.rails.forEach(function (r) { ribbon(r, 1, 3); });
-    water.flush();
-
-    // Земля: один большой квадрат, сетку рисует шейдер
-    var ground = new Mesh(2);
-    var G = 6000;
-    ground.vert(-G, -G); ground.vert(G, -G); ground.vert(G, G); ground.vert(-G, G);
-    ground.i.push(0, 1, 2, 0, 2, 3);
-    ground.flush();
-
-    /* ---------- Шейдеры ---------- */
-
-    var HEAD = [
-      '#ifdef GL_FRAGMENT_PRECISION_HIGH',
-      'precision highp float;',
-      '#else',
-      'precision mediump float;',
-      '#endif',
-    ].join('\n');
-    var COMMON = [
-      'uniform mat4 uVP;',
-      'uniform vec3 uEye;',
-      'uniform float uTime;',
-      'uniform float uGrow;',     // дома «вырастают» при появлении
-      'uniform vec2 uFade;',      // край модели: начало и конец растворения, м
-      'uniform vec2 uFog;',       // дымка по расстоянию от камеры, м
-      'uniform vec4 uSpot[4];',   // тёплые кварталы: x, z, радиус, сила
-      'uniform float uFront[4];', // яркость фронта, пока квартал разгорается
-      'float fogOf(vec3 w){',
-      '  float f = smoothstep(uFog.x, uFog.y, distance(uEye, w));',
-      '  return max(f, smoothstep(uFade.x, uFade.y, length(w.xz)));',
-      '}',
-      'float heatAt(vec2 p){',
-      '  float h = 0.0;',
-      '  for (int i = 0; i < 4; i++) {',
-      '    float d = distance(p, uSpot[i].xy);',
-      '    h = max(h, uSpot[i].w * (1.0 - smoothstep(uSpot[i].z * 0.7, uSpot[i].z + 1.0, d)));',
-      '  }',
-      '  return h;',
-      '}',
-      'float frontAt(vec2 p){',
-      '  float f = 0.0;',
-      '  for (int i = 0; i < 4; i++) {',
-      '    float k = (distance(p, uSpot[i].xy) - uSpot[i].z) / 45.0;',
-      '    f = max(f, uFront[i] * exp(-k * k));',
-      '  }',
-      '  return f;',
-      '}',
-      // Отдельные дома по всему городу изредка вспыхивают сами по себе
-      'float twinkle(float seed){ return pow(max(0.0, sin(uTime * 0.21 + seed * 61.0)), 30.0); }',
-      'float growOf(vec2 p){ float delay = clamp(length(p) / 1800.0, 0.0, 1.0) * 0.45; return smoothstep(delay, delay + 0.55, uGrow); }',
-    ].join('\n');
-    var BG = 'const vec3 BG = vec3(0.027, 0.070, 0.113);';
-
-    var progs = {};
-
-    progs.ground = program(
-      [HEAD, COMMON, 'attribute vec2 aPos; varying vec3 vW;',
-        'void main(){ vW = vec3(aPos.x, 0.0, aPos.y); gl_Position = uVP * vec4(vW, 1.0); }'].join('\n'),
-      ['#extension GL_OES_standard_derivatives : enable', HEAD, COMMON, BG,
-        'varying vec3 vW;',
-        'void main(){',
-        '  vec2 p = vW.xz;',
-        '  vec2 g = abs(fract(p / 100.0 - 0.5) - 0.5) / fwidth(p / 100.0);',
-        '  float line = 1.0 - min(min(g.x, g.y), 1.0);',
-        '  float r = length(p);',
-        '  vec3 c = BG + vec3(0.030, 0.075, 0.105) * (1.0 - smoothstep(0.0, 2400.0, r));',
-        '  c += vec3(0.16, 0.36, 0.50) * line * 0.30;',
-        '  float heat = heatAt(p);',
-        '  c += vec3(0.50, 0.22, 0.07) * heat * 0.16;',
-        '  c += vec3(1.0, 0.62, 0.30) * frontAt(p) * 0.45;',
-        '  gl_FragColor = vec4(mix(c, BG, fogOf(vW)), 1.0);',
-        '}'].join('\n'),
-      ['aPos']
-    );
-
-    progs.water = program(
-      [HEAD, COMMON, 'attribute vec2 aPos; attribute float aSide; attribute float aAlong; attribute float aKind;',
-        'varying vec3 vW; varying float vSide; varying float vAlong; varying float vKind;',
-        'void main(){ vW = vec3(aPos.x, 0.2, aPos.y); vSide = aSide; vAlong = aAlong; vKind = aKind;',
-        '  gl_Position = uVP * vec4(vW, 1.0); }'].join('\n'),
-      [HEAD, COMMON,
-        'varying vec3 vW; varying float vSide; varying float vAlong; varying float vKind;',
-        'void main(){',
-        '  float e = abs(vSide);',
-        '  vec3 c;',
-        '  if (vKind < 0.5) {',
-        '    float bank = smoothstep(0.7, 0.95, e) * (1.0 - smoothstep(0.95, 1.0, e));',
-        '    float s = 0.5 + 0.5 * sin(vAlong * 0.045 - uTime * 1.1 + sin(vAlong * 0.011) * 3.0);',
-        '    c = vec3(0.020, 0.090, 0.110) * (1.0 - e * 0.6) + vec3(0.18, 0.62, 0.68) * bank * 0.55 + vec3(0.05, 0.22, 0.26) * s * (1.0 - e) * 0.35;',
-        '  } else {',
-        '    float sleeper = step(0.55, fract(vAlong / 3.0));',
-        '    c = vec3(0.30, 0.26, 0.24) * (0.35 + 0.35 * sleeper) * (1.0 - smoothstep(0.6, 1.0, e));',
-        '  }',
-        '  gl_FragColor = vec4(c * (1.0 - fogOf(vW)), 1.0);',
-        '}'].join('\n'),
-      ['aPos', 'aSide', 'aAlong', 'aKind']
-    );
-
-    progs.roads = program(
-      [HEAD, COMMON, 'attribute vec2 aPos; attribute float aSide; attribute float aD; attribute float aMajor; attribute float aAlong;',
-        'varying vec3 vW; varying float vSide; varying float vD; varying float vMajor;',
-        'void main(){ vW = vec3(aPos.x, 0.4, aPos.y); vSide = aSide; vD = aD; vMajor = aMajor;',
-        '  gl_Position = uVP * vec4(vW, 1.0); }'].join('\n'),
-      [HEAD, COMMON,
-        'varying vec3 vW; varying float vSide; varying float vD; varying float vMajor;',
-        'void main(){',
-        '  float core = 1.0 - smoothstep(0.15, 1.0, abs(vSide));',
-        '  float heat = heatAt(vW.xz);',
-        '  vec3 c = vec3(0.13, 0.32, 0.48) * (0.55 + 0.45 * vMajor);',
-        '  c = mix(c, vec3(0.62, 0.30, 0.11) * (0.7 + 0.3 * vMajor), heat);',
-        '  float flow = smoothstep(0.82, 1.0, fract((vD - uTime * 70.0) / 55.0)) * heat;',
-        '  c += vec3(1.0, 0.66, 0.36) * flow * 0.55;',
-        '  c += vec3(1.0, 0.86, 0.62) * frontAt(vW.xz) * 1.4;',
-        '  gl_FragColor = vec4(c * core * (1.0 - fogOf(vW)), 1.0);',
-        '}'].join('\n'),
-      ['aPos', 'aSide', 'aD', 'aMajor', 'aAlong']
-    );
-
-    progs.walls = program(
-      [HEAD, COMMON, 'attribute vec3 aPos; attribute float aShade; attribute float aD; attribute float aH; attribute float aU;',
-        'varying vec3 vW; varying float vShade; varying float vHeat; varying float vFlash; varying float vU; varying float vSeed; varying float vH; varying float vFogK;',
-        'void main(){',
-        '  float g = growOf(aPos.xz);',
-        '  vW = vec3(aPos.x, aPos.y * g, aPos.z);',
-        '  vShade = aShade; vU = aU; vH = aH * g;',
-        '  vSeed = fract(aD);',
-        '  vHeat = max(heatAt(aPos.xz), twinkle(vSeed) * 0.6);',
-        '  vFlash = frontAt(aPos.xz);',
-        '  vFogK = fogOf(vW);',
-        '  gl_Position = uVP * vec4(vW, 1.0);',
-        '}'].join('\n'),
-      [HEAD, COMMON, BG,
-        'varying vec3 vW; varying float vShade; varying float vHeat; varying float vFlash; varying float vU; varying float vSeed; varying float vH; varying float vFogK;',
-        'float hash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }',
-        'void main(){',
-        '  vec3 base = vec3(0.050, 0.098, 0.145);',
-        '  vec3 c;',
-        '  if (vU >= 0.0) {',
-        '    c = base * (0.55 + 0.75 * vShade);',
-        '    float fy = vW.y / 4.2; float fx = vU / 3.3;',
-        '    vec2 cell = vec2(floor(fx), floor(fy));',
-        '    vec2 f = vec2(fract(fx), fract(fy));',
-        '    float win = step(0.28, f.x) * step(f.x, 0.72) * step(0.32, f.y) * step(f.y, 0.78) * step(vW.y, vH - 0.6);',
-        '    float rnd = hash(cell + vSeed * 97.0);',
-        '    float lit = step(1.0 - mix(0.16, 0.66, vHeat), rnd);',
-        '    float far = 1.0 - smoothstep(700.0, 1700.0, distance(uEye, vW));',
-        '    vec3 wc = mix(vec3(0.42, 0.62, 0.86) * 0.45, vec3(1.0, 0.74, 0.42), vHeat);',
-        '    c += win * lit * wc * (0.45 + 0.55 * rnd) * far;',
-        '    c += vec3(0.95, 0.45, 0.16) * vHeat * 0.10 * (1.0 - vW.y / max(vH, 1.0));',
-        '  } else {',
-        '    c = base * 1.35 + vec3(0.85, 0.40, 0.15) * vHeat * 0.12;',
-        '  }',
-        '  c += vec3(1.0, 0.78, 0.5) * vFlash * 0.32;',
-        '  gl_FragColor = vec4(mix(c, BG, vFogK), 1.0);',
-        '}'].join('\n'),
-      ['aPos', 'aShade', 'aD', 'aH', 'aU']
-    );
-
-    progs.edges = program(
-      [HEAD, COMMON, 'attribute vec3 aPos; attribute float aD; attribute float aH; attribute float aKind;',
-        'varying vec3 vW; varying float vHeat; varying float vFlash; varying float vKind;',
-        'void main(){',
-        '  float g = growOf(aPos.xz);',
-        '  vW = vec3(aPos.x, aPos.y * g, aPos.z);',
-        '  vHeat = max(heatAt(aPos.xz), twinkle(fract(aD)) * 0.6);',
-        '  vFlash = frontAt(aPos.xz); vKind = aKind;',
-        '  gl_Position = uVP * vec4(vW, 1.0);',
-        '}'].join('\n'),
-      [HEAD, COMMON,
-        'varying vec3 vW; varying float vHeat; varying float vFlash; varying float vKind;',
-        'void main(){',
-        '  vec3 c = mix(vec3(0.26, 0.58, 0.82) * 0.75, vec3(1.0, 0.56, 0.22) * 0.9, vHeat);',
-        '  c += vec3(1.0, 0.88, 0.66) * vFlash * 1.1;',
-        '  float a = mix(0.62, 0.34, vKind) * (1.0 - fogOf(vW));',
-        '  gl_FragColor = vec4(c * a, 1.0);',
-        '}'].join('\n'),
-      ['aPos', 'aD', 'aH', 'aKind']
-    );
-
-    for (var pk in progs) if (!progs[pk]) return;
-
-    function program(vsSrc, fsSrc, attrs) {
-      function sh(type, src) {
-        var s = gl.createShader(type);
-        gl.shaderSource(s, src);
-        gl.compileShader(s);
-        return gl.getShaderParameter(s, gl.COMPILE_STATUS) ? s : null;
-      }
-      var vs = sh(gl.VERTEX_SHADER, vsSrc);
-      var fs = sh(gl.FRAGMENT_SHADER, fsSrc);
-      if (!vs || !fs) return null;
-      var p = gl.createProgram();
-      gl.attachShader(p, vs);
-      gl.attachShader(p, fs);
-      attrs.forEach(function (name, i) { gl.bindAttribLocation(p, i, name); });
-      gl.linkProgram(p);
-      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) return null;
-      var u = {};
-      var count = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
-      for (var i = 0; i < count; i++) {
-        var info = gl.getActiveUniform(p, i);
-        var name = info.name.replace(/\[0\]$/, '');
-        u[name] = gl.getUniformLocation(p, name);
-      }
-      return { p: p, u: u };
     }
 
-    /* ---------- Буферы ---------- */
+    // Слои города и шейдеры нужны и при сборке (finish), и при запуске (ready)
+    var roads, water, ground, progs;
 
-    function upload(mesh, layout) {
-      return mesh.parts.map(function (part) {
-        var vb = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, vb);
-        gl.bufferData(gl.ARRAY_BUFFER, part.v, gl.STATIC_DRAW);
-        var ib = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, part.i, gl.STATIC_DRAW);
-        return { vb: vb, ib: ib, n: part.i.length, layout: layout, stride: mesh.stride };
+    // Дома строим кусками по 8 мс: на слабом телефоне сборка одним куском
+    // занимала больше секунды, и страница в это время не отзывалась
+    var nextBuilding = 0;
+    (function buildSlice() {
+      var stopAt = performance.now() + 8;
+      while (nextBuilding < city.buildings.length && performance.now() < stopAt) addBuilding(city.buildings[nextBuilding++]);
+      if (nextBuilding < city.buildings.length) { setTimeout(buildSlice, 0); return; }
+      walls.flush();
+      edges.flush();
+      if (spotPool.length) setTimeout(finish, 0);
+    })();
+
+    function finish() {
+
+      // Улицы — светящиеся ленты; в тёплом квартале по ним бегут огоньки
+      roads = new Mesh(6); // x, z, side, d, major, along
+      city.roads.forEach(function (rd) {
+        var p = rd.pts;
+        var n = p.length / 3;
+        var w = rd.major ? 9 : 5.5;
+        roads.room(n * 4);
+        var along = 0;
+        for (var i = 0; i < n - 1; i++) {
+          var ax = p[i * 3]; var ay = p[i * 3 + 1]; var ad = p[i * 3 + 2];
+          var bx = p[i * 3 + 3]; var by = p[i * 3 + 4]; var bd = p[i * 3 + 5];
+          var ex = bx - ax; var ey = by - ay;
+          var len = Math.sqrt(ex * ex + ey * ey) || 1;
+          var ox = (-ey / len) * w; var oy = (ex / len) * w;
+          var v0 = roads.vert(ax + ox, -(ay + oy), 1, ad, rd.major, along);
+          var v1 = roads.vert(ax - ox, -(ay - oy), -1, ad, rd.major, along);
+          var v2 = roads.vert(bx + ox, -(by + oy), 1, bd, rd.major, along + len);
+          var v3 = roads.vert(bx - ox, -(by - oy), -1, bd, rd.major, along + len);
+          roads.i.push(v0, v1, v2, v1, v3, v2);
+          along += len;
+        }
       });
-    }
-    var geo = {
-      ground: upload(ground, [2]),
-      water: upload(water, [2, 1, 1, 1]),
-      roads: upload(roads, [2, 1, 1, 1, 1]),
-      walls: upload(walls, [3, 1, 1, 1, 1]),
-      edges: upload(edges, [3, 1, 1, 1]),
-    };
-    var maxAttrs = 5;
+      roads.flush();
 
-    function drawGeo(list, mode) {
-      list.forEach(function (g) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, g.vb);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.ib);
-        var off = 0;
-        for (var a = 0; a < maxAttrs; a++) {
-          if (a < g.layout.length) {
-            gl.enableVertexAttribArray(a);
-            gl.vertexAttribPointer(a, g.layout[a], gl.FLOAT, false, g.stride * 4, off * 4);
-            off += g.layout[a];
-          } else {
-            gl.disableVertexAttribArray(a);
+      // Реки и железная дорога — ленты по земле
+      water = new Mesh(5); // x, z, side, along, kind
+      function ribbon(line, kind, w) {
+        var p = line.pts;
+        var n = p.length / 2;
+        water.room(n * 4);
+        var along = 0;
+        for (var i = 0; i < n - 1; i++) {
+          var ax = p[i * 2]; var ay = p[i * 2 + 1];
+          var bx = p[i * 2 + 2]; var by = p[i * 2 + 3];
+          var ex = bx - ax; var ey = by - ay;
+          var len = Math.sqrt(ex * ex + ey * ey) || 1;
+          var ox = (-ey / len) * w; var oy = (ex / len) * w;
+          var v0 = water.vert(ax + ox, -(ay + oy), 1, along, kind);
+          var v1 = water.vert(ax - ox, -(ay - oy), -1, along, kind);
+          var v2 = water.vert(bx + ox, -(by + oy), 1, along + len, kind);
+          var v3 = water.vert(bx - ox, -(by - oy), -1, along + len, kind);
+          water.i.push(v0, v1, v2, v1, v3, v2);
+          along += len;
+        }
+      }
+      city.water.forEach(function (w) { ribbon(w, 0, w.w / 2); });
+      city.rails.forEach(function (r) { ribbon(r, 1, 3); });
+      water.flush();
+
+      // Земля: один большой квадрат, сетку рисует шейдер
+      ground = new Mesh(2);
+      var G = 6000;
+      ground.vert(-G, -G); ground.vert(G, -G); ground.vert(G, G); ground.vert(-G, G);
+      ground.i.push(0, 1, 2, 0, 2, 3);
+      ground.flush();
+
+      /* ---------- Шейдеры ---------- */
+
+      var HEAD = [
+        '#ifdef GL_FRAGMENT_PRECISION_HIGH',
+        'precision highp float;',
+        '#else',
+        'precision mediump float;',
+        '#endif',
+      ].join('\n');
+      var COMMON = [
+        'uniform mat4 uVP;',
+        'uniform vec3 uEye;',
+        'uniform float uTime;',
+        'uniform float uGrow;',     // дома «вырастают» при появлении
+        'uniform vec2 uFade;',      // край модели: начало и конец растворения, м
+        'uniform vec2 uFog;',       // дымка по расстоянию от камеры, м
+        'uniform vec4 uSpot[4];',   // тёплые кварталы: x, z, радиус, сила
+        'uniform float uFront[4];', // яркость фронта, пока квартал разгорается
+        'float fogOf(vec3 w){',
+        '  float f = smoothstep(uFog.x, uFog.y, distance(uEye, w));',
+        '  return max(f, smoothstep(uFade.x, uFade.y, length(w.xz)));',
+        '}',
+        'float heatAt(vec2 p){',
+        '  float h = 0.0;',
+        '  for (int i = 0; i < 4; i++) {',
+        '    float d = distance(p, uSpot[i].xy);',
+        '    h = max(h, uSpot[i].w * (1.0 - smoothstep(uSpot[i].z * 0.7, uSpot[i].z + 1.0, d)));',
+        '  }',
+        '  return h;',
+        '}',
+        'float frontAt(vec2 p){',
+        '  float f = 0.0;',
+        '  for (int i = 0; i < 4; i++) {',
+        '    float k = (distance(p, uSpot[i].xy) - uSpot[i].z) / 45.0;',
+        '    f = max(f, uFront[i] * exp(-k * k));',
+        '  }',
+        '  return f;',
+        '}',
+        // Отдельные дома по всему городу изредка вспыхивают сами по себе
+        'float twinkle(float seed){ return pow(max(0.0, sin(uTime * 0.21 + seed * 61.0)), 30.0); }',
+        'float growOf(vec2 p){ float delay = clamp(length(p) / 1800.0, 0.0, 1.0) * 0.45; return smoothstep(delay, delay + 0.55, uGrow); }',
+      ].join('\n');
+      var BG = 'const vec3 BG = vec3(0.027, 0.070, 0.113);';
+
+      progs = {};
+      var pending = {};
+
+      pending.ground = startProgram(
+        [HEAD, COMMON, 'attribute vec2 aPos; varying vec3 vW;',
+          'void main(){ vW = vec3(aPos.x, 0.0, aPos.y); gl_Position = uVP * vec4(vW, 1.0); }'].join('\n'),
+        ['#extension GL_OES_standard_derivatives : enable', HEAD, COMMON, BG,
+          'varying vec3 vW;',
+          'void main(){',
+          '  vec2 p = vW.xz;',
+          '  vec2 g = abs(fract(p / 100.0 - 0.5) - 0.5) / fwidth(p / 100.0);',
+          '  float line = 1.0 - min(min(g.x, g.y), 1.0);',
+          '  float r = length(p);',
+          '  vec3 c = BG + vec3(0.030, 0.075, 0.105) * (1.0 - smoothstep(0.0, 2400.0, r));',
+          '  c += vec3(0.16, 0.36, 0.50) * line * 0.30;',
+          '  float heat = heatAt(p);',
+          '  c += vec3(0.50, 0.22, 0.07) * heat * 0.16;',
+          '  c += vec3(1.0, 0.62, 0.30) * frontAt(p) * 0.45;',
+          '  gl_FragColor = vec4(mix(c, BG, fogOf(vW)), 1.0);',
+          '}'].join('\n'),
+        ['aPos']
+      );
+
+      pending.water = startProgram(
+        [HEAD, COMMON, 'attribute vec2 aPos; attribute float aSide; attribute float aAlong; attribute float aKind;',
+          'varying vec3 vW; varying float vSide; varying float vAlong; varying float vKind;',
+          'void main(){ vW = vec3(aPos.x, 0.2, aPos.y); vSide = aSide; vAlong = aAlong; vKind = aKind;',
+          '  gl_Position = uVP * vec4(vW, 1.0); }'].join('\n'),
+        [HEAD, COMMON,
+          'varying vec3 vW; varying float vSide; varying float vAlong; varying float vKind;',
+          'void main(){',
+          '  float e = abs(vSide);',
+          '  vec3 c;',
+          '  if (vKind < 0.5) {',
+          '    float bank = smoothstep(0.7, 0.95, e) * (1.0 - smoothstep(0.95, 1.0, e));',
+          '    float s = 0.5 + 0.5 * sin(vAlong * 0.045 - uTime * 1.1 + sin(vAlong * 0.011) * 3.0);',
+          '    c = vec3(0.020, 0.090, 0.110) * (1.0 - e * 0.6) + vec3(0.18, 0.62, 0.68) * bank * 0.55 + vec3(0.05, 0.22, 0.26) * s * (1.0 - e) * 0.35;',
+          '  } else {',
+          '    float sleeper = step(0.55, fract(vAlong / 3.0));',
+          '    c = vec3(0.30, 0.26, 0.24) * (0.35 + 0.35 * sleeper) * (1.0 - smoothstep(0.6, 1.0, e));',
+          '  }',
+          '  gl_FragColor = vec4(c * (1.0 - fogOf(vW)), 1.0);',
+          '}'].join('\n'),
+        ['aPos', 'aSide', 'aAlong', 'aKind']
+      );
+
+      pending.roads = startProgram(
+        [HEAD, COMMON, 'attribute vec2 aPos; attribute float aSide; attribute float aD; attribute float aMajor; attribute float aAlong;',
+          'varying vec3 vW; varying float vSide; varying float vD; varying float vMajor;',
+          'void main(){ vW = vec3(aPos.x, 0.4, aPos.y); vSide = aSide; vD = aD; vMajor = aMajor;',
+          '  gl_Position = uVP * vec4(vW, 1.0); }'].join('\n'),
+        [HEAD, COMMON,
+          'varying vec3 vW; varying float vSide; varying float vD; varying float vMajor;',
+          'void main(){',
+          '  float core = 1.0 - smoothstep(0.15, 1.0, abs(vSide));',
+          '  float heat = heatAt(vW.xz);',
+          '  vec3 c = vec3(0.13, 0.32, 0.48) * (0.55 + 0.45 * vMajor);',
+          '  c = mix(c, vec3(0.62, 0.30, 0.11) * (0.7 + 0.3 * vMajor), heat);',
+          '  float flow = smoothstep(0.82, 1.0, fract((vD - uTime * 70.0) / 55.0)) * heat;',
+          '  c += vec3(1.0, 0.66, 0.36) * flow * 0.55;',
+          '  c += vec3(1.0, 0.86, 0.62) * frontAt(vW.xz) * 1.4;',
+          '  gl_FragColor = vec4(c * core * (1.0 - fogOf(vW)), 1.0);',
+          '}'].join('\n'),
+        ['aPos', 'aSide', 'aD', 'aMajor', 'aAlong']
+      );
+
+      pending.walls = startProgram(
+        [HEAD, COMMON, 'attribute vec3 aPos; attribute float aShade; attribute float aD; attribute float aH; attribute float aU;',
+          'varying vec3 vW; varying float vShade; varying float vHeat; varying float vFlash; varying float vU; varying float vSeed; varying float vH; varying float vFogK;',
+          'void main(){',
+          '  float g = growOf(aPos.xz);',
+          '  vW = vec3(aPos.x, aPos.y * g, aPos.z);',
+          '  vShade = aShade; vU = aU; vH = aH * g;',
+          '  vSeed = fract(aD);',
+          '  vHeat = max(heatAt(aPos.xz), twinkle(vSeed) * 0.6);',
+          '  vFlash = frontAt(aPos.xz);',
+          '  vFogK = fogOf(vW);',
+          '  gl_Position = uVP * vec4(vW, 1.0);',
+          '}'].join('\n'),
+        [HEAD, COMMON, BG,
+          'varying vec3 vW; varying float vShade; varying float vHeat; varying float vFlash; varying float vU; varying float vSeed; varying float vH; varying float vFogK;',
+          'float hash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }',
+          'void main(){',
+          '  vec3 base = vec3(0.050, 0.098, 0.145);',
+          '  vec3 c;',
+          '  if (vU >= 0.0) {',
+          '    c = base * (0.55 + 0.75 * vShade);',
+          '    float fy = vW.y / 4.2; float fx = vU / 3.3;',
+          '    vec2 cell = vec2(floor(fx), floor(fy));',
+          '    vec2 f = vec2(fract(fx), fract(fy));',
+          '    float win = step(0.28, f.x) * step(f.x, 0.72) * step(0.32, f.y) * step(f.y, 0.78) * step(vW.y, vH - 0.6);',
+          '    float rnd = hash(cell + vSeed * 97.0);',
+          '    float lit = step(1.0 - mix(0.16, 0.66, vHeat), rnd);',
+          '    float far = 1.0 - smoothstep(700.0, 1700.0, distance(uEye, vW));',
+          '    vec3 wc = mix(vec3(0.42, 0.62, 0.86) * 0.45, vec3(1.0, 0.74, 0.42), vHeat);',
+          '    c += win * lit * wc * (0.45 + 0.55 * rnd) * far;',
+          '    c += vec3(0.95, 0.45, 0.16) * vHeat * 0.10 * (1.0 - vW.y / max(vH, 1.0));',
+          '  } else {',
+          '    c = base * 1.35 + vec3(0.85, 0.40, 0.15) * vHeat * 0.12;',
+          '  }',
+          '  c += vec3(1.0, 0.78, 0.5) * vFlash * 0.32;',
+          '  gl_FragColor = vec4(mix(c, BG, vFogK), 1.0);',
+          '}'].join('\n'),
+        ['aPos', 'aShade', 'aD', 'aH', 'aU']
+      );
+
+      pending.edges = startProgram(
+        [HEAD, COMMON, 'attribute vec3 aPos; attribute float aD; attribute float aH; attribute float aKind;',
+          'varying vec3 vW; varying float vHeat; varying float vFlash; varying float vKind;',
+          'void main(){',
+          '  float g = growOf(aPos.xz);',
+          '  vW = vec3(aPos.x, aPos.y * g, aPos.z);',
+          '  vHeat = max(heatAt(aPos.xz), twinkle(fract(aD)) * 0.6);',
+          '  vFlash = frontAt(aPos.xz); vKind = aKind;',
+          '  gl_Position = uVP * vec4(vW, 1.0);',
+          '}'].join('\n'),
+        [HEAD, COMMON,
+          'varying vec3 vW; varying float vHeat; varying float vFlash; varying float vKind;',
+          'void main(){',
+          '  vec3 c = mix(vec3(0.26, 0.58, 0.82) * 0.75, vec3(1.0, 0.56, 0.22) * 0.9, vHeat);',
+          '  c += vec3(1.0, 0.88, 0.66) * vFlash * 1.1;',
+          '  float a = mix(0.62, 0.34, vKind) * (1.0 - fogOf(vW));',
+          '  gl_FragColor = vec4(c * a, 1.0);',
+          '}'].join('\n'),
+        ['aPos', 'aD', 'aH', 'aKind']
+      );
+
+      // С расширением KHR_parallel_shader_compile видеокарта собирает шейдеры в
+      // фоне, а мы только заглядываем раз в кадр; без него проверка ждёт сборки
+      var parallel = gl.getExtension('KHR_parallel_shader_compile');
+      (function waitPrograms() {
+        for (var k in pending) {
+          if (!pending[k]) return;
+          if (parallel && !gl.getProgramParameter(pending[k].p, parallel.COMPLETION_STATUS_KHR)) { setTimeout(waitPrograms, 16); return; }
+        }
+        for (var name in pending) {
+          progs[name] = finishProgram(pending[name]);
+          if (!progs[name]) return;
+        }
+        setTimeout(ready, 0);
+      })();
+
+      function startProgram(vsSrc, fsSrc, attrs) {
+        function sh(type, src) {
+          var s = gl.createShader(type);
+          gl.shaderSource(s, src);
+          gl.compileShader(s);
+          return s;
+        }
+        var vs = sh(gl.VERTEX_SHADER, vsSrc);
+        var fs = sh(gl.FRAGMENT_SHADER, fsSrc);
+        var p = gl.createProgram();
+        if (!vs || !fs || !p) return null;
+        gl.attachShader(p, vs);
+        gl.attachShader(p, fs);
+        attrs.forEach(function (name, i) { gl.bindAttribLocation(p, i, name); });
+        gl.linkProgram(p);
+        return { p: p, vs: vs, fs: fs };
+      }
+      function finishProgram(item) {
+        var p = item.p;
+        if (!gl.getProgramParameter(p, gl.LINK_STATUS)) return null;
+        var u = {};
+        var count = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+        for (var i = 0; i < count; i++) {
+          var info = gl.getActiveUniform(p, i);
+          var name = info.name.replace(/\[0\]$/, '');
+          u[name] = gl.getUniformLocation(p, name);
+        }
+        return { p: p, u: u };
+      }
+    }
+
+    function ready() {
+      /* ---------- Буферы ---------- */
+
+      function upload(mesh, layout) {
+        return mesh.parts.map(function (part) {
+          var vb = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+          gl.bufferData(gl.ARRAY_BUFFER, part.v, gl.STATIC_DRAW);
+          var ib = gl.createBuffer();
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib);
+          gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, part.i, gl.STATIC_DRAW);
+          return { vb: vb, ib: ib, n: part.i.length, layout: layout, stride: mesh.stride };
+        });
+      }
+      var geo = {
+        ground: upload(ground, [2]),
+        water: upload(water, [2, 1, 1, 1]),
+        roads: upload(roads, [2, 1, 1, 1, 1]),
+        walls: upload(walls, [3, 1, 1, 1, 1]),
+        edges: upload(edges, [3, 1, 1, 1]),
+      };
+      var maxAttrs = 5;
+
+      function drawGeo(list, mode) {
+        list.forEach(function (g) {
+          gl.bindBuffer(gl.ARRAY_BUFFER, g.vb);
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.ib);
+          var off = 0;
+          for (var a = 0; a < maxAttrs; a++) {
+            if (a < g.layout.length) {
+              gl.enableVertexAttribArray(a);
+              gl.vertexAttribPointer(a, g.layout[a], gl.FLOAT, false, g.stride * 4, off * 4);
+              off += g.layout[a];
+            } else {
+              gl.disableVertexAttribArray(a);
+            }
+          }
+          gl.drawElements(mode, g.n, gl.UNSIGNED_SHORT, 0);
+        });
+      }
+
+      /* ---------- Камера ---------- */
+
+      function perspective(fovy, aspect, near, far, sx, sy) {
+        var f = 1 / Math.tan(fovy / 2);
+        var nf = 1 / (near - far);
+        return [f / aspect, 0, 0, 0, 0, f, 0, 0, -sx, -sy, (far + near) * nf, -1, 0, 0, 2 * far * near * nf, 0];
+      }
+      function lookAt(eye, at) {
+        var zx = eye[0] - at[0]; var zy = eye[1] - at[1]; var zz = eye[2] - at[2];
+        var zl = Math.sqrt(zx * zx + zy * zy + zz * zz); zx /= zl; zy /= zl; zz /= zl;
+        var xx = zz; var xy = 0; var xz = -zx; // up = (0,1,0) × z
+        var xl = Math.sqrt(xx * xx + xz * xz) || 1; xx /= xl; xz /= xl;
+        var yx = zy * xz - zz * xy; var yy = zz * xx - zx * xz; var yz = zx * xy - zy * xx;
+        return [
+          xx, yx, zx, 0,
+          xy, yy, zy, 0,
+          xz, yz, zz, 0,
+          -(xx * eye[0] + xy * eye[1] + xz * eye[2]),
+          -(yx * eye[0] + yy * eye[1] + yz * eye[2]),
+          -(zx * eye[0] + zy * eye[1] + zz * eye[2]), 1,
+        ];
+      }
+      function mul(a, b) {
+        var o = new Array(16);
+        for (var c = 0; c < 4; c++) {
+          for (var r = 0; r < 4; r++) {
+            o[c * 4 + r] = a[r] * b[c * 4] + a[4 + r] * b[c * 4 + 1] + a[8 + r] * b[c * 4 + 2] + a[12 + r] * b[c * 4 + 3];
           }
         }
-        gl.drawElements(mode, g.n, gl.UNSIGNED_SHORT, 0);
-      });
-    }
+        return o;
+      }
 
-    /* ---------- Камера ---------- */
+      var W = 1;
+      var H = 1;
+      var quality = 1;
+      var wide = true;
 
-    function perspective(fovy, aspect, near, far, sx, sy) {
-      var f = 1 / Math.tan(fovy / 2);
-      var nf = 1 / (near - far);
-      return [f / aspect, 0, 0, 0, 0, f, 0, 0, -sx, -sy, (far + near) * nf, -1, 0, 0, 2 * far * near * nf, 0];
-    }
-    function lookAt(eye, at) {
-      var zx = eye[0] - at[0]; var zy = eye[1] - at[1]; var zz = eye[2] - at[2];
-      var zl = Math.sqrt(zx * zx + zy * zy + zz * zz); zx /= zl; zy /= zl; zz /= zl;
-      var xx = zz; var xy = 0; var xz = -zx; // up = (0,1,0) × z
-      var xl = Math.sqrt(xx * xx + xz * xz) || 1; xx /= xl; xz /= xl;
-      var yx = zy * xz - zz * xy; var yy = zz * xx - zx * xz; var yz = zx * xy - zy * xx;
-      return [
-        xx, yx, zx, 0,
-        xy, yy, zy, 0,
-        xz, yz, zz, 0,
-        -(xx * eye[0] + xy * eye[1] + xz * eye[2]),
-        -(yx * eye[0] + yy * eye[1] + yz * eye[2]),
-        -(zx * eye[0] + zy * eye[1] + zz * eye[2]), 1,
-      ];
-    }
-    function mul(a, b) {
-      var o = new Array(16);
-      for (var c = 0; c < 4; c++) {
-        for (var r = 0; r < 4; r++) {
-          o[c * 4 + r] = a[r] * b[c * 4] + a[4 + r] * b[c * 4 + 1] + a[8 + r] * b[c * 4 + 2] + a[12 + r] * b[c * 4 + 3];
+      function resize() {
+        var r = hero.getBoundingClientRect();
+        var dpr = window.devicePixelRatio || 1;
+        var px = (coarse ? Math.min(dpr, 1.5) : Math.min(dpr, 1.25)) * quality;
+        W = Math.max(1, r.width);
+        H = Math.max(1, r.height);
+        wide = W >= 980;
+        var w = Math.max(1, Math.round(W * px));
+        var h = Math.max(1, Math.round(H * px));
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+        gl.viewport(0, 0, w, h);
+        if (!running) render(lastNow);
+      }
+
+      /* ---------- Движение ---------- */
+
+      var DEG = Math.PI / 180;
+      var cam = { vp: null, eye: [0, 0, 0] };
+      var scrollK = 0;
+
+      function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+      function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+
+      function camera(t) {
+        var intro = still ? 1 : ease(clamp01(t / 3.4));
+        var yaw = (-34 + 34 * intro) * DEG + (still ? 0 : t * 1.5 * DEG);
+        var elev = (80 - (wide ? 53 : 48) * intro) * DEG - scrollK * 8 * DEG;
+        var dist = (3500 - 1400 * intro - scrollK * 380) * (wide ? 1 : 1.15);
+        var tx = wide ? 160 : 0;
+        var tz = wide ? 40 : 60;
+        var ce = Math.cos(elev);
+        var eye = [tx + dist * ce * Math.sin(yaw), dist * Math.sin(elev), tz + dist * ce * Math.cos(yaw)];
+        cam.eye = eye;
+        var proj = perspective(36 * DEG, W / H, 20, 14000, wide ? 0.2 : 0, wide ? -0.2 : -0.46);
+        cam.vp = mul(proj, lookAt(eye, [tx, 0, tz]));
+      }
+
+      // Тёплые кварталы: появляются в случайных местах, разгораются, остывают
+      var spots = [];
+      var nextSpawn = 1.3;
+      var lastPick = null;
+      var spotU = new Float32Array(16);
+      var spotF = new Float32Array(4);
+
+      // Место выбираем там, где город хорошо виден: не под текстом и не у
+      // самого горизонта, и подальше от предыдущего
+      function onScreen(p) {
+        var m = cam.vp;
+        if (!m) return true;
+        var cx = m[0] * p[0] + m[8] * p[1] + m[12];
+        var cy = m[1] * p[0] + m[9] * p[1] + m[13];
+        var cw = m[3] * p[0] + m[11] * p[1] + m[15];
+        if (cw <= 0) return false;
+        var x = cx / cw * 0.5 + 0.5;
+        var y = 0.5 - cy / cw * 0.5;
+        return wide ? x > 0.46 && x < 0.97 && y > 0.36 && y < 0.95 : x > 0.08 && x < 0.92 && y > 0.58 && y < 0.97;
+      }
+      function pick() {
+        var fallback = null;
+        for (var tries = 0; tries < 24; tries++) {
+          var p = spotPool[(Math.random() * spotPool.length) | 0];
+          var far = !lastPick || Math.abs(p[0] - lastPick[0]) + Math.abs(p[1] - lastPick[1]) > 520;
+          if (far && !fallback) fallback = p;
+          if (far && onScreen(p)) return (lastPick = p);
+        }
+        return (lastPick = fallback || spotPool[(Math.random() * spotPool.length) | 0]);
+      }
+      function spawn(t) {
+        var p = pick();
+        spots.push({ x: p[0], z: p[1], t0: t, R: (lite ? 220 : 260) + Math.random() * (lite ? 300 : 440), life: 6.5 + Math.random() * 3 });
+        if (spots.length > 4) spots.shift();
+      }
+      // Для неподвижного кадра — три уже прогретых квартала
+      function settle(t) {
+        var chosen = [];
+        var n = spotPool.length;
+        for (var k = 0; k < n && chosen.length < 3; k++) {
+          var p = spotPool[(Math.floor(n * 0.17) + k * 7919) % n];
+          if (!onScreen(p)) continue;
+          if (chosen.some(function (c) { return Math.abs(c[0] - p[0]) + Math.abs(c[1] - p[1]) < 520; })) continue;
+          chosen.push(p);
+        }
+        spots = chosen.map(function (p, i) {
+          return { x: p[0], z: p[1], t0: t - 3 - i * 0.7, R: lite ? 380 : 520, life: 1e6 };
+        });
+        nextSpawn = t + 1.5;
+      }
+      function updateSpots(t) {
+        if (!still) {
+          while (t >= nextSpawn) {
+            spawn(nextSpawn);
+            nextSpawn += 1.6 + Math.random() * 1.6;
+          }
+        }
+        spots = spots.filter(function (s) { return t - s.t0 < s.life; });
+        for (var i = 0; i < 4; i++) {
+          var s = spots[i];
+          if (!s) {
+            spotU[i * 4] = -1e5; spotU[i * 4 + 1] = -1e5; spotU[i * 4 + 2] = 0; spotU[i * 4 + 3] = 0;
+            spotF[i] = 0;
+            continue;
+          }
+          var age = t - s.t0;
+          var g = 1 - Math.pow(1 - clamp01(age / 2.2), 3);
+          var a = clamp01(age / 0.35) * clamp01((s.life - age) / 2.4);
+          spotU[i * 4] = s.x; spotU[i * 4 + 1] = s.z; spotU[i * 4 + 2] = s.R * g; spotU[i * 4 + 3] = a;
+          spotF[i] = (1 - g) * a;
         }
       }
-      return o;
-    }
 
-    var W = 1;
-    var H = 1;
-    var quality = 1;
-    var wide = true;
-
-    function resize() {
-      var r = hero.getBoundingClientRect();
-      var dpr = window.devicePixelRatio || 1;
-      var px = (coarse ? Math.min(dpr, 1.5) : Math.min(dpr, 1.25)) * quality;
-      W = Math.max(1, r.width);
-      H = Math.max(1, r.height);
-      wide = W >= 980;
-      var w = Math.max(1, Math.round(W * px));
-      var h = Math.max(1, Math.round(H * px));
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
+      function setCommon(pr, t) {
+        var u = pr.u;
+        gl.useProgram(pr.p);
+        if (u.uVP) gl.uniformMatrix4fv(u.uVP, false, cam.vp);
+        if (u.uEye) gl.uniform3f(u.uEye, cam.eye[0], cam.eye[1], cam.eye[2]);
+        if (u.uTime) gl.uniform1f(u.uTime, t);
+        if (u.uGrow) gl.uniform1f(u.uGrow, still ? 1 : clamp01((t - 0.5) / 2.6));
+        if (u.uFade) gl.uniform2f(u.uFade, lite ? 950 : 1250, lite ? 1320 : 1760);
+        if (u.uFog) gl.uniform2f(u.uFog, 1600, 5200);
+        if (u.uSpot) gl.uniform4fv(u.uSpot, spotU);
+        if (u.uFront) gl.uniform1fv(u.uFront, spotF);
       }
-      gl.viewport(0, 0, w, h);
-      if (!running) render(lastNow);
-    }
 
-    /* ---------- Движение ---------- */
+      var t0 = performance.now();
+      var lastNow = t0;
 
-    var DEG = Math.PI / 180;
-    var cam = { vp: null, eye: [0, 0, 0] };
-    var scrollK = 0;
+      function render(now) {
+        var t = (now - t0) / 1000;
+        lastNow = now;
+        if (still) t = 30;
+        camera(t);
+        updateSpots(t);
 
-    function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
-    function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+        gl.clearColor(0.027, 0.070, 0.113, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    function camera(t) {
-      var intro = still ? 1 : ease(clamp01(t / 3.4));
-      var yaw = (-34 + 34 * intro) * DEG + (still ? 0 : t * 1.5 * DEG);
-      var elev = (80 - (wide ? 53 : 48) * intro) * DEG - scrollK * 8 * DEG;
-      var dist = (3500 - 1400 * intro - scrollK * 380) * (wide ? 1 : 1.15);
-      var tx = wide ? 160 : 0;
-      var tz = wide ? 40 : 60;
-      var ce = Math.cos(elev);
-      var eye = [tx + dist * ce * Math.sin(yaw), dist * Math.sin(elev), tz + dist * ce * Math.cos(yaw)];
-      cam.eye = eye;
-      var proj = perspective(36 * DEG, W / H, 20, 14000, wide ? 0.2 : 0, wide ? -0.2 : -0.46);
-      cam.vp = mul(proj, lookAt(eye, [tx, 0, tz]));
-    }
+        // Земля, реки и улицы — без глубины, светятся сложением
+        gl.disable(gl.DEPTH_TEST);
+        gl.depthMask(false);
+        gl.disable(gl.BLEND);
+        setCommon(progs.ground, t);
+        drawGeo(geo.ground, gl.TRIANGLES);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.ONE, gl.ONE);
+        setCommon(progs.water, t);
+        drawGeo(geo.water, gl.TRIANGLES);
+        setCommon(progs.roads, t);
+        drawGeo(geo.roads, gl.TRIANGLES);
 
-    // Тёплые кварталы: появляются в случайных местах, разгораются, остывают
-    var spots = [];
-    var nextSpawn = 1.3;
-    var lastPick = null;
-    var spotU = new Float32Array(16);
-    var spotF = new Float32Array(4);
+        // Дома — непрозрачные, с глубиной
+        gl.disable(gl.BLEND);
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.LEQUAL);
+        gl.depthMask(true);
+        gl.enable(gl.POLYGON_OFFSET_FILL);
+        gl.polygonOffset(1, 1);
+        setCommon(progs.walls, t);
+        drawGeo(geo.walls, gl.TRIANGLES);
+        gl.disable(gl.POLYGON_OFFSET_FILL);
 
-    // Место выбираем там, где город хорошо виден: не под текстом и не у
-    // самого горизонта, и подальше от предыдущего
-    function onScreen(p) {
-      var m = cam.vp;
-      if (!m) return true;
-      var cx = m[0] * p[0] + m[8] * p[1] + m[12];
-      var cy = m[1] * p[0] + m[9] * p[1] + m[13];
-      var cw = m[3] * p[0] + m[11] * p[1] + m[15];
-      if (cw <= 0) return false;
-      var x = cx / cw * 0.5 + 0.5;
-      var y = 0.5 - cy / cw * 0.5;
-      return wide ? x > 0.46 && x < 0.97 && y > 0.36 && y < 0.95 : x > 0.08 && x < 0.92 && y > 0.58 && y < 0.97;
-    }
-    function pick() {
-      var fallback = null;
-      for (var tries = 0; tries < 24; tries++) {
-        var p = spotPool[(Math.random() * spotPool.length) | 0];
-        var far = !lastPick || Math.abs(p[0] - lastPick[0]) + Math.abs(p[1] - lastPick[1]) > 520;
-        if (far && !fallback) fallback = p;
-        if (far && onScreen(p)) return (lastPick = p);
+        // Рёбра домов — поверх, сложением
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.ONE, gl.ONE);
+        gl.depthMask(false);
+        setCommon(progs.edges, t);
+        drawGeo(geo.edges, gl.LINES);
+        gl.depthMask(true);
       }
-      return (lastPick = fallback || spotPool[(Math.random() * spotPool.length) | 0]);
-    }
-    function spawn(t) {
-      var p = pick();
-      spots.push({ x: p[0], z: p[1], t0: t, R: (lite ? 220 : 260) + Math.random() * (lite ? 300 : 440), life: 6.5 + Math.random() * 3 });
-      if (spots.length > 4) spots.shift();
-    }
-    // Для неподвижного кадра — три уже прогретых квартала
-    function settle(t) {
-      var chosen = [];
-      var n = spotPool.length;
-      for (var k = 0; k < n && chosen.length < 3; k++) {
-        var p = spotPool[(Math.floor(n * 0.17) + k * 7919) % n];
-        if (!onScreen(p)) continue;
-        if (chosen.some(function (c) { return Math.abs(c[0] - p[0]) + Math.abs(c[1] - p[1]) < 520; })) continue;
-        chosen.push(p);
+
+      function onScroll() {
+        var r = hero.getBoundingClientRect();
+        scrollK = clamp01(-r.top / Math.max(1, r.height));
       }
-      spots = chosen.map(function (p, i) {
-        return { x: p[0], z: p[1], t0: t - 3 - i * 0.7, R: lite ? 380 : 520, life: 1e6 };
-      });
-      nextSpawn = t + 1.5;
-    }
-    function updateSpots(t) {
-      if (!still) {
-        while (t >= nextSpawn) {
-          spawn(nextSpawn);
-          nextSpawn += 1.6 + Math.random() * 1.6;
+      if (!still) window.addEventListener('scroll', onScroll, { passive: true });
+
+      /* ---------- Цикл ---------- */
+
+      var FRAME_MS = coarse ? 1000 / 30 : 1000 / 60;
+      var running = false;
+      var raf = 0;
+      var lastFrame = 0;
+      var visible = true;
+      var slow = 0;
+      var frames = 0;
+
+      try {
+        if (localStorage.getItem('bgts-scene-stopped') === '1') canvas.setAttribute('data-stopped', '');
+      } catch (e) { /* приватный режим */ }
+
+      function stoppedByUser() { return canvas.hasAttribute('data-stopped'); }
+      function blocked() {
+        return still || stoppedByUser() || !visible || document.hidden || root.getAttribute('data-vision') === 'on';
+      }
+      function loop(now) {
+        raf = requestAnimationFrame(loop);
+        var gap = now - lastFrame;
+        if (gap < FRAME_MS - 1) return;
+        lastFrame = now;
+        render(now);
+        if (gap < 250) {
+          frames++;
+          if (gap > FRAME_MS * 1.6) slow++;
+          if (frames >= 90) {
+            if (slow > 45 && quality > 0.6) { quality *= 0.8; resize(); }
+            frames = 0;
+            slow = 0;
+          }
         }
       }
-      spots = spots.filter(function (s) { return t - s.t0 < s.life; });
-      for (var i = 0; i < 4; i++) {
-        var s = spots[i];
-        if (!s) {
-          spotU[i * 4] = -1e5; spotU[i * 4 + 1] = -1e5; spotU[i * 4 + 2] = 0; spotU[i * 4 + 3] = 0;
-          spotF[i] = 0;
-          continue;
-        }
-        var age = t - s.t0;
-        var g = 1 - Math.pow(1 - clamp01(age / 2.2), 3);
-        var a = clamp01(age / 0.35) * clamp01((s.life - age) / 2.4);
-        spotU[i * 4] = s.x; spotU[i * 4 + 1] = s.z; spotU[i * 4 + 2] = s.R * g; spotU[i * 4 + 3] = a;
-        spotF[i] = (1 - g) * a;
+      function start() {
+        if (running || blocked()) return;
+        running = true;
+        lastFrame = 0;
+        lastNow = performance.now();
+        raf = requestAnimationFrame(loop);
       }
-    }
-
-    function setCommon(pr, t) {
-      var u = pr.u;
-      gl.useProgram(pr.p);
-      if (u.uVP) gl.uniformMatrix4fv(u.uVP, false, cam.vp);
-      if (u.uEye) gl.uniform3f(u.uEye, cam.eye[0], cam.eye[1], cam.eye[2]);
-      if (u.uTime) gl.uniform1f(u.uTime, t);
-      if (u.uGrow) gl.uniform1f(u.uGrow, still ? 1 : clamp01((t - 0.5) / 2.6));
-      if (u.uFade) gl.uniform2f(u.uFade, lite ? 950 : 1250, lite ? 1320 : 1760);
-      if (u.uFog) gl.uniform2f(u.uFog, 1600, 5200);
-      if (u.uSpot) gl.uniform4fv(u.uSpot, spotU);
-      if (u.uFront) gl.uniform1fv(u.uFront, spotF);
-    }
-
-    var t0 = performance.now();
-    var lastNow = t0;
-
-    function render(now) {
-      var t = (now - t0) / 1000;
-      lastNow = now;
-      if (still) t = 30;
-      camera(t);
-      updateSpots(t);
-
-      gl.clearColor(0.027, 0.070, 0.113, 1);
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-      // Земля, реки и улицы — без глубины, светятся сложением
-      gl.disable(gl.DEPTH_TEST);
-      gl.depthMask(false);
-      gl.disable(gl.BLEND);
-      setCommon(progs.ground, t);
-      drawGeo(geo.ground, gl.TRIANGLES);
-      gl.enable(gl.BLEND);
-      gl.blendFunc(gl.ONE, gl.ONE);
-      setCommon(progs.water, t);
-      drawGeo(geo.water, gl.TRIANGLES);
-      setCommon(progs.roads, t);
-      drawGeo(geo.roads, gl.TRIANGLES);
-
-      // Дома — непрозрачные, с глубиной
-      gl.disable(gl.BLEND);
-      gl.enable(gl.DEPTH_TEST);
-      gl.depthFunc(gl.LEQUAL);
-      gl.depthMask(true);
-      gl.enable(gl.POLYGON_OFFSET_FILL);
-      gl.polygonOffset(1, 1);
-      setCommon(progs.walls, t);
-      drawGeo(geo.walls, gl.TRIANGLES);
-      gl.disable(gl.POLYGON_OFFSET_FILL);
-
-      // Рёбра домов — поверх, сложением
-      gl.enable(gl.BLEND);
-      gl.blendFunc(gl.ONE, gl.ONE);
-      gl.depthMask(false);
-      setCommon(progs.edges, t);
-      drawGeo(geo.edges, gl.LINES);
-      gl.depthMask(true);
-    }
-
-    function onScroll() {
-      var r = hero.getBoundingClientRect();
-      scrollK = clamp01(-r.top / Math.max(1, r.height));
-    }
-    if (!still) window.addEventListener('scroll', onScroll, { passive: true });
-
-    /* ---------- Цикл ---------- */
-
-    var FRAME_MS = coarse ? 1000 / 30 : 1000 / 60;
-    var running = false;
-    var raf = 0;
-    var lastFrame = 0;
-    var visible = true;
-    var slow = 0;
-    var frames = 0;
-
-    try {
-      if (localStorage.getItem('bgts-scene-stopped') === '1') canvas.setAttribute('data-stopped', '');
-    } catch (e) { /* приватный режим */ }
-
-    function stoppedByUser() { return canvas.hasAttribute('data-stopped'); }
-    function blocked() {
-      return still || stoppedByUser() || !visible || document.hidden || root.getAttribute('data-vision') === 'on';
-    }
-    function loop(now) {
-      raf = requestAnimationFrame(loop);
-      var gap = now - lastFrame;
-      if (gap < FRAME_MS - 1) return;
-      lastFrame = now;
-      render(now);
-      if (gap < 250) {
-        frames++;
-        if (gap > FRAME_MS * 1.6) slow++;
-        if (frames >= 90) {
-          if (slow > 45 && quality > 0.6) { quality *= 0.8; resize(); }
-          frames = 0;
-          slow = 0;
-        }
+      function stop() {
+        running = false;
+        cancelAnimationFrame(raf);
       }
-    }
-    function start() {
-      if (running || blocked()) return;
-      running = true;
-      lastFrame = 0;
-      lastNow = performance.now();
-      raf = requestAnimationFrame(loop);
-    }
-    function stop() {
-      running = false;
-      cancelAnimationFrame(raf);
-    }
-    function sync() { if (blocked()) stop(); else start(); }
+      function sync() { if (blocked()) stop(); else start(); }
 
-    // Неподвижный кадр и остановленная заранее сцена — город уже собран,
-    // три квартала прогреты там, где их видно
-    var settled = still || stoppedByUser();
-    if (settled && !still) t0 = performance.now() - 30000;
-    resize();
-    if (settled) { camera(30); settle(30); }
-    render(performance.now());
-    hero.classList.add('is-live');
-    sync();
-
-    new MutationObserver(sync).observe(canvas, { attributes: true, attributeFilter: ['data-stopped'] });
-    new MutationObserver(function () {
+      // Неподвижный кадр и остановленная заранее сцена — город уже собран,
+      // три квартала прогреты там, где их видно
+      var settled = still || stoppedByUser();
+      if (settled && !still) t0 = performance.now() - 30000;
+      resize();
+      if (settled) { camera(30); settle(30); }
+      render(performance.now());
+      hero.classList.add('is-live');
       sync();
-      if (root.getAttribute('data-vision') !== 'on') resize();
-    }).observe(root, { attributes: true, attributeFilter: ['data-vision'] });
-    document.addEventListener('visibilitychange', sync);
-    if ('IntersectionObserver' in window) {
-      new IntersectionObserver(function (entries) {
-        visible = entries[0].isIntersecting;
-        sync();
-      }).observe(hero);
-    }
-    if ('ResizeObserver' in window) new ResizeObserver(function () { resize(); }).observe(hero);
-    else window.addEventListener('resize', resize);
 
-    canvas.addEventListener('webglcontextlost', function (e) {
-      e.preventDefault();
-      stop();
-      hero.classList.remove('is-live');
-    });
+      new MutationObserver(sync).observe(canvas, { attributes: true, attributeFilter: ['data-stopped'] });
+      new MutationObserver(function () {
+        sync();
+        if (root.getAttribute('data-vision') !== 'on') resize();
+      }).observe(root, { attributes: true, attributeFilter: ['data-vision'] });
+      document.addEventListener('visibilitychange', sync);
+      if ('IntersectionObserver' in window) {
+        new IntersectionObserver(function (entries) {
+          visible = entries[0].isIntersecting;
+          sync();
+        }).observe(hero);
+      }
+      if ('ResizeObserver' in window) new ResizeObserver(function () { resize(); }).observe(hero);
+      else window.addEventListener('resize', resize);
+
+      canvas.addEventListener('webglcontextlost', function (e) {
+        e.preventDefault();
+        stop();
+        hero.classList.remove('is-live');
+      });
+    }
   }
 })();

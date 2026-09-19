@@ -13,7 +13,7 @@ crumbs: Заявка отправлена
       </h1>
 
       <p id="ticket-line" hidden>Номер вашей заявки: <strong class="tabnum" id="ticket-value" style="font-size:1.3rem"></strong></p>
-      <p id="message-line"></p>
+      <p id="message-line">Заявка принята и передана специалисту.</p>
 
       <p>Запишите или сфотографируйте номер заявки — по нему специалист найдёт ваше обращение. Дополнительное подтверждение на почту не направляется.</p>
 
@@ -29,16 +29,3 @@ crumbs: Заявка отправлена
     </div>
   </div>
 </section>
-
-<script>
-  (function () {
-    var params = new URLSearchParams(location.search);
-    var ticket = params.get('ticket');
-    var msg = params.get('msg');
-    if (ticket) {
-      document.getElementById('ticket-value').textContent = ticket;
-      document.getElementById('ticket-line').hidden = false;
-    }
-    document.getElementById('message-line').textContent = msg || 'Заявка принята и передана специалисту.';
-  })();
-</script>
