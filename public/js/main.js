@@ -605,10 +605,10 @@
         }).formatToParts(new Date()).forEach(function (p) { parts[p.type] = p.value; });
       } catch (err) {
         var local = new Date();
-        parts = { month: local.getMonth() + 1, day: local.getDate(), hour: local.getHours(), minute: local.getMinutes() };
+        parts = { year: local.getFullYear(), month: local.getMonth() + 1, day: local.getDate(), hour: local.getHours(), minute: local.getMinutes() };
       }
       return {
-        m: Number(parts.month), d: Number(parts.day),
+        y: Number(parts.year), m: Number(parts.month), d: Number(parts.day),
         time: ('0' + Number(parts.hour)).slice(-2) + ':' + ('0' + Number(parts.minute)).slice(-2),
       };
     };
@@ -628,10 +628,19 @@
     var clock = statusPanel.querySelector('[data-status-clock]');
     var from = Number(statusPanel.getAttribute('data-from'));
     var to = Number(statusPanel.getAttribute('data-to'));
+    // Полоска месяца: окно приёма показаний и отметка «сегодня» (варианты 3–4)
+    var strip = statusPanel.querySelector('[data-status-month]');
 
     var tick = function () {
       var now = moscowNow();
       if (clock) clock.textContent = now.d + ' ' + MONTHS[now.m - 1] + ', ' + now.time + ' МСК';
+      if (strip && from && to && now.y) {
+        strip.style.setProperty('--days', String(new Date(now.y, now.m, 0).getDate()));
+        strip.style.setProperty('--from', String(from));
+        strip.style.setProperty('--to', String(to));
+        strip.style.setProperty('--today', String(now.d));
+        strip.hidden = false;
+      }
       if (from && to) {
         var row = statusPanel.querySelector('[data-status-readings]');
         if (now.d >= from && now.d <= to) {
@@ -682,7 +691,7 @@
     var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce || !('IntersectionObserver' in window)) return;
 
-    var scene = document.querySelector('.hero__scene');
+    var scene = document.querySelector('[data-scene]') || document.querySelector('.hero__scene');
     var stopBtn = document.querySelector('[data-scene-toggle]');
     if (scene && stopBtn) {
       var STOP_KEY = 'bgts-scene-stopped';

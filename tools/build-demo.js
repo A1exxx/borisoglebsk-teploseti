@@ -10,7 +10,8 @@
  * Запуск: node tools/build-demo.js [папка] [--variant 2]
  *   без аргумента — .demo/borisoglebsk-teploseti/
  *   с аргументом  — например, рабочая копия ветки gh-pages
- *   --variant 2    — второй вариант оформления, адрес …/borisoglebsk-teploseti/v2/
+ *   --variant N    — вариант оформления N, адрес …/borisoglebsk-teploseti/vN/
+ *                    (вариант 1 — в корне)
  */
 
 const fs = require('fs');
@@ -28,7 +29,9 @@ const OUT = path.resolve(args[0] ? path.join(args[0], SUB) : path.join(ROOT, '.d
 fs.mkdirSync(OUT, { recursive: true });
 
 // Статика копией. Постраничные сканы (_scans) в git не лежат и в демо не нужны.
-for (const dir of ['css', 'js', 'img', 'docs']) {
+// Шрифты и данные сцены есть не во всех вариантах оформления.
+for (const dir of ['css', 'js', 'img', 'docs', 'fonts', 'data']) {
+  if (!fs.existsSync(path.join(ROOT, 'public', dir))) continue;
   fs.cpSync(path.join(ROOT, 'public', dir), path.join(OUT, dir), {
     recursive: true,
     filter: (src) => !src.split(path.sep).includes('_scans'),
