@@ -1122,10 +1122,10 @@ html[data-vision="on"] .tablewrap[data-outages] caption::before { display: none;
 html[data-vision="on"] .footer { background-image: none; }
 
 /* ---------- 33. Вариант 4: «Цифровой двойник» ---------- */
-/* Тёмный первый экран: объёмная модель Борисоглебска по данным OpenStreetMap
-   на WebGL (public/js/hero-twin.js, данные public/data/city*.bin). От
-   настоящих дымовых труб по улицам расходится тепловая волна. Остальной
-   сайт светлый: формы и документы на светлом фоне читать легче.
+/* Тёмный первый экран: объёмный город на WebGL (public/js/hero-twin.js),
+   город строит сама программа. То в одном, то в другом квартале загорается
+   тепло. Никаких подписей поверх и реакции на мышь. Остальной сайт
+   светлый: формы и документы на светлом фоне читать легче.
    Шрифты Geist и Geist Mono — свободная лицензия OFL 1.1, лежат на сайте. */
 @font-face {
   font-family: "Geist"; font-style: normal; font-display: swap; font-weight: 100 900;
@@ -1184,16 +1184,16 @@ html[data-vision="on"] h1, html[data-vision="on"] h2, html[data-vision="on"] h3 
   .hero__shade {
     background:
       linear-gradient(90deg, rgba(7, 18, 29, .95) 0%, rgba(7, 18, 29, .88) 36%, rgba(7, 18, 29, .45) 54%, rgba(7, 18, 29, 0) 72%),
-      linear-gradient(0deg, rgba(7, 18, 29, .7) 0%, transparent 22%);
+      linear-gradient(0deg, rgba(7, 18, 29, .45) 0%, transparent 18%);
   }
 }
 html[data-vision="on"] .hero--twin { background: var(--c-surface); color: var(--c-text); }
 
-.hero--twin .hero__in { padding-block: clamp(40px, 7vh, 72px) 112px; }
+.hero--twin .hero__in { padding-block: clamp(40px, 7vh, 72px) clamp(56px, 9vh, 88px); }
 @media (min-width: 980px) {
   .hero--twin .hero__in {
     grid-template-columns: minmax(0, 1.2fr) minmax(340px, .8fr); gap: clamp(40px, 6vw, 96px);
-    min-height: clamp(560px, 74svh, 760px); padding-block: 72px 120px; align-items: center;
+    min-height: clamp(560px, 74svh, 760px); padding-block: 72px 96px; align-items: center;
   }
 }
 .hero--twin h1 {
@@ -1212,53 +1212,6 @@ html[data-vision="on"] .hero--twin .hero__lead { color: var(--c-text); }
   }
 }
 @keyframes twin-rise { from { opacity: 0; transform: translateY(16px); filter: blur(6px); } }
-
-/* Рамка «видоискателя» по углам первого экрана */
-@media (min-width: 980px) {
-  .hero--twin::after {
-    content: ""; position: absolute; inset: 20px; pointer-events: none; z-index: 1;
-    --c: rgba(126, 203, 255, .45);
-    background:
-      linear-gradient(var(--c), var(--c)) left top / 18px 1px no-repeat,
-      linear-gradient(var(--c), var(--c)) left top / 1px 18px no-repeat,
-      linear-gradient(var(--c), var(--c)) right top / 18px 1px no-repeat,
-      linear-gradient(var(--c), var(--c)) right top / 1px 18px no-repeat,
-      linear-gradient(var(--c), var(--c)) left bottom / 18px 1px no-repeat,
-      linear-gradient(var(--c), var(--c)) left bottom / 1px 18px no-repeat,
-      linear-gradient(var(--c), var(--c)) right bottom / 18px 1px no-repeat,
-      linear-gradient(var(--c), var(--c)) right bottom / 1px 18px no-repeat;
-  }
-  html[data-vision="on"] .hero--twin::after { display: none; }
-}
-
-/* Подписи рек: точка и название, двигаются вместе с моделью */
-.hero__labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.twin-label {
-  position: absolute; left: 0; top: 0; margin: -9px 0 0 -4px;
-  display: inline-flex; align-items: center; gap: 8px;
-  font: 500 .72rem/1 var(--font-mono); letter-spacing: .04em; color: #9fdcf0; white-space: nowrap;
-  opacity: 0; transition: opacity .6s var(--ease-out);
-  text-shadow: 0 1px 8px rgba(7, 18, 29, .9);
-}
-.twin-label::before { content: ""; width: 7px; height: 7px; border-radius: 50%; border: 1px solid currentColor; background: rgba(7, 18, 29, .6); }
-
-/* Строка приборов внизу: координаты под курсором, легенда, ссылка на карту */
-.hero__hud {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--s5);
-  padding: 12px max(var(--s4), calc((100% - var(--wrap)) / 2 + var(--s4)));
-  font: 500 .72rem/1.4 var(--font-mono); letter-spacing: .02em; color: #8fb2cc;
-  border-top: 1px solid rgba(126, 203, 255, .1);
-  background: linear-gradient(0deg, rgba(7, 18, 29, .85), rgba(7, 18, 29, .45));
-}
-.hud__coord { font-variant-numeric: tabular-nums; min-width: 30ch; }
-.hud__tag { color: #cfe6f5; text-transform: uppercase; letter-spacing: .12em; }
-.hud__legend { display: none; align-items: center; gap: 10px; }
-@media (min-width: 980px) { .hud__legend { display: inline-flex; } }
-.hud__bar { width: 64px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, #2c6f9e, var(--twin-cyan) 30%, var(--twin-warm) 72%, #ffe0b8); }
-.hud__osm { margin-left: auto; color: #8fb2cc; text-underline-offset: 3px; }
-.hud__osm:hover { color: #fff; }
-@media (max-width: 640px) { .hud__coord { min-width: 0; } .hud__tag { display: none; } }
 
 /* 33.2 Кнопки: на тёмном — светящийся контур, нажатие пружинит */
 .btn { border-radius: 10px; transition: background-color .16s var(--ease), border-color .16s var(--ease), box-shadow .2s var(--ease), transform .2s var(--ease-out); }
@@ -1352,5 +1305,3 @@ html[data-vision="on"] .svc__ico { background: var(--c-surface); color: var(--c-
 }
 html[data-vision="on"] .hero--twin ~ .section .svc::before { color: var(--c-text); font-family: var(--font-ui); }
 html[data-vision="on"] .hero--twin ~ .section .svc { border-bottom-width: 2px; }
-/* Ссылка на условия OpenStreetMap — зона нажатия не меньше 24 пикселей */
-.hud__osm { display: inline-block; padding-block: 5px; }

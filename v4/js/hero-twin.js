@@ -1,27 +1,24 @@
 /* МУП БГО ВО «Борисоглебские теплосети» — вариант 4 первого экрана.
-   «Цифровой двойник»: объёмная модель Борисоглебска по данным
-   OpenStreetMap — дома, улицы, реки, железная дорога. От настоящих дымовых
-   труб по улицам расходится тепловая волна: улицы вспыхивают, дома теплеют,
-   в окнах загорается свет. Камера из вида сверху, как на карте, наклоняется
-   в объём и медленно облетает город. Под курсором — координаты точки.
-   Волна — иллюстрация, а не схема тепловых сетей.
+   «Цифровой двойник»: объёмный город — дома, улицы, река, железная
+   дорога. Город свой, его строит программа (makeCity), это не карта и не
+   чужие данные. Камера из вида сверху наклоняется в объём и медленно
+   облетает город. То в одном, то в другом квартале загорается тепло:
+   улицы и дома теплеют, в окнах зажигается свет, потом квартал остывает.
+   Места выбираются случайно. Мышь на сцену не влияет.
 
-   WebGL без библиотек; данные — готовый файл public/data/city*.bin
-   (tools/city-data.js), в OpenStreetMap сайт не ходит.
+   WebGL без библиотек, ничего не скачивает.
 
    Не запускается (остаётся спокойный фон из CSS), если нет WebGL, включена
    экономия трафика, устройство совсем слабое или включена версия для
-   слабовидящих. Если человек просил уменьшить движение — один неподвижный
-   кадр без облёта. */
+   слабовидящих. Если человек просил уменьшить движение или видеокарты нет —
+   один неподвижный кадр. */
 (function () {
   'use strict';
 
   var hero = document.querySelector('[data-twin]');
   if (!hero) return;
   var canvas = hero.querySelector('canvas[data-scene]');
-  var labelsBox = hero.querySelector('[data-twin-labels]');
-  var coordOut = hero.querySelector('[data-twin-coord]');
-  if (!canvas || !window.requestAnimationFrame || !window.fetch || !window.DataView || !window.Float32Array) return;
+  if (!canvas || !window.requestAnimationFrame || !window.Float32Array) return;
 
   var root = document.documentElement;
   function mq(q) { return !!(window.matchMedia && window.matchMedia(q).matches); }
@@ -48,70 +45,224 @@
 
   function load() {
     var lite = coarse || window.innerWidth < 900;
-    var base = root.getAttribute('data-base') || '';
-    fetch(base + '/data/' + (lite ? 'city-lite.bin' : 'city.bin'), { credentials: 'same-origin' })
-      .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.arrayBuffer(); })
-      .then(function (buf) { boot(parse(buf), lite); })
-      .catch(function () { /* нет данных — остаётся фон из CSS */ });
+    // Город строится после первой отрисовки страницы, чтобы не задерживать её
+    var later = window.requestIdleCallback || function (fn) { return setTimeout(fn, 60); };
+    later(function () { boot(makeCity(lite), lite); });
   }
 
-  /* ---------- Данные ---------- */
+  /* ---------- Город ---------- */
 
-  function parse(buf) {
-    var dv = new DataView(buf);
-    var magic = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
-    if (magic !== 'BGT1') throw new Error('city.bin');
-    var city = {
-      lat0: dv.getFloat32(8, true), lon0: dv.getFloat32(12, true),
-      buildings: [], roads: [], water: [], rails: [], sources: [],
-    };
-    var nB = dv.getUint32(16, true);
-    var nR = dv.getUint32(20, true);
-    var nW = dv.getUint32(24, true);
-    var nL = dv.getUint32(28, true);
-    var nS = dv.getUint32(32, true);
-    var o = 36;
-    var i, k, n;
-    for (i = 0; i < nB; i++) {
-      n = dv.getUint8(o);
-      var h = dv.getUint8(o + 1) / 2;
-      var d = dv.getUint16(o + 2, true);
-      var x = dv.getInt16(o + 4, true);
-      var y = dv.getInt16(o + 6, true);
-      o += 8;
-      var ring = [x, y];
-      for (k = 1; k < n; k++) {
-        x += dv.getInt8(o);
-        y += dv.getInt8(o + 1);
-        ring.push(x, y);
-        o += 2;
+  // Свой город, а не карта: улицы, кварталы и дома строит программа по
+  // случайным числам с постоянным зерном, поэтому он всегда одинаковый.
+  // Похож на уездный город с сеткой кварталов: центр с многоэтажками,
+  // частный сектор с сараями во дворах, промзона у железной дороги,
+  // река на западе, мост и дороги за город. Координаты — метры от центра,
+  // x — восток, y — север.
+  function makeCity(lite) {
+    var seed = 20260919;
+    function rnd() {
+      seed = (seed + 0x6D2B79F5) | 0;
+      var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+    function range(a, b) { return a + (b - a) * rnd(); }
+
+    var R = lite ? 1150 : 1700; // радиус застройки, м
+    var city = { buildings: [], roads: [], water: [], rails: [] };
+
+    function riverU(v) { return -R * 0.84 + 120 * Math.sin(v / 430 + 0.6) + 48 * Math.sin(v / 150 + 1.3); }
+    function railV(u) { return -R * 0.52 + u * 0.06; }
+    // Старая дорога наискосок через сетку кварталов
+    var DK = 0.62;
+    var DB = 150;
+    var DN = Math.sqrt(1 + DK * DK);
+    function diag(u, v) { return Math.abs(v - DK * u - DB) / DN; }
+
+    function free(u, v, half) {
+      if (u < riverU(v) + 38 + half) return false;
+      if (Math.abs(v - railV(u)) < 40 + half) return false;
+      if (diag(u, v) < 14 + half) return false;
+      return u * u + v * v < R * R * 1.08;
+    }
+    function rect(u, v, w, d, h) {
+      if (!free(u, v, Math.max(w, d) * 0.5)) return;
+      var a = u - w / 2; var b = u + w / 2; var c = v - d / 2; var e = v + d / 2;
+      city.buildings.push({ ring: [a, c, b, c, b, e, a, e], h: h, d: 0 });
+    }
+
+    /* Улицы: сетка с неровным шагом, каждая четвёртая — широкая */
+    var xs = [];
+    var ys = [];
+    var q;
+    for (q = -R - 420; q <= R + 420; q += range(142, 168)) xs.push(q);
+    for (q = -R - 420; q <= R + 420; q += range(108, 126)) ys.push(q);
+    function major(i) { return i % 4 === 2; }
+    var ROADR = R + 260;
+
+    function addRoad(points, isMajor) {
+      if (points.length < 4) return;
+      var pts = [];
+      var d = 0;
+      for (var k = 0; k < points.length; k += 2) {
+        if (k) d += Math.sqrt(Math.pow(points[k] - points[k - 2], 2) + Math.pow(points[k + 1] - points[k - 1], 2));
+        pts.push(points[k], points[k + 1], d);
       }
-      city.buildings.push({ ring: ring, h: h, d: d });
+      city.roads.push({ major: isMajor ? 1 : 0, pts: pts });
     }
-    for (i = 0; i < nR; i++) {
-      n = dv.getUint16(o, true);
-      var road = { major: dv.getUint8(o + 2), pts: [] };
-      o += 4;
-      for (k = 0; k < n; k++) {
-        road.pts.push(dv.getInt16(o, true), dv.getInt16(o + 2, true), dv.getUint16(o + 4, true));
-        o += 6;
+    function roadOk(u, v) {
+      return u * u + v * v < ROADR * ROADR && u > riverU(v) + 30;
+    }
+
+    var i, j, cur;
+    // Улицы с севера на юг: у железной дороги обрываются, кроме широких
+    for (i = 0; i < xs.length; i++) {
+      cur = [];
+      for (j = 0; j < ys.length; j++) {
+        var u = xs[i]; var v = ys[j];
+        var crossesRail = j > 0 && (ys[j - 1] - railV(u)) * (v - railV(u)) < 0;
+        if (!roadOk(u, v) || (crossesRail && !major(i))) { addRoad(cur, major(i)); cur = []; if (!roadOk(u, v)) continue; }
+        cur.push(u, v);
       }
-      city.roads.push(road);
+      addRoad(cur, major(i));
     }
-    for (i = 0; i < nW + nL; i++) {
-      n = dv.getUint16(o, true);
-      var line = { w: dv.getUint8(o + 2), name: dv.getUint8(o + 3), pts: [] };
-      o += 4;
-      for (k = 0; k < n; k++) {
-        line.pts.push(dv.getInt16(o, true), dv.getInt16(o + 2, true));
-        o += 4;
+    // Улицы с запада на восток: вдоль путей не идут
+    for (j = 0; j < ys.length; j++) {
+      cur = [];
+      for (i = 0; i < xs.length; i++) {
+        var uu = xs[i]; var vv = ys[j];
+        if (!roadOk(uu, vv) || Math.abs(vv - railV(uu)) < 34) { addRoad(cur, major(j)); cur = []; continue; }
+        cur.push(uu, vv);
       }
-      (i < nW ? city.water : city.rails).push(line);
+      addRoad(cur, major(j));
     }
-    for (i = 0; i < nS; i++) {
-      city.sources.push([dv.getInt16(o, true), dv.getInt16(o + 2, true)]);
-      o += 4;
+    // Диагональ, мост через реку и дороги за город
+    cur = [];
+    for (q = -R; q <= R; q += 60) {
+      var dv = DK * q + DB;
+      if (roadOk(q, dv)) cur.push(q, dv); else { addRoad(cur, true); cur = []; }
     }
+    addRoad(cur, true);
+    var bridgeV = ys[Math.floor(ys.length / 2) + 1];
+    addRoad([-R * 1.9, bridgeV + 40, riverU(bridgeV) - 60, bridgeV, R * 0.2, bridgeV], true);
+    [22, 68, 118, 205, 250, 318].forEach(function (deg) {
+      var a = deg * Math.PI / 180;
+      var pts = [];
+      for (var rr = R * 0.9; rr <= R * 2.2; rr += 120) {
+        var wob = Math.sin(rr / 260 + deg) * 40;
+        pts.push(Math.cos(a) * rr - Math.sin(a) * wob, Math.sin(a) * rr + Math.cos(a) * wob);
+      }
+      addRoad(pts, true);
+    });
+
+    /* Кварталы */
+    for (i = 0; i < xs.length - 1; i++) {
+      for (j = 0; j < ys.length - 1; j++) {
+        var u0 = xs[i] + (major(i) ? 11 : 7);
+        var u1 = xs[i + 1] - (major(i + 1) ? 11 : 7);
+        var v0 = ys[j] + (major(j) ? 11 : 7);
+        var v1 = ys[j + 1] - (major(j + 1) ? 11 : 7);
+        var uc = (u0 + u1) / 2;
+        var vc = (v0 + v1) / 2;
+        var r = Math.sqrt(uc * uc + vc * vc);
+        if (r > R * (0.9 + 0.14 * rnd())) continue; // рваный край города
+        if (u0 < riverU(vc) + 60) continue;
+        var nearRail = Math.abs(vc - railV(uc));
+        if (nearRail < 70) continue;
+        var roll = rnd();
+        if (roll < 0.05) continue; // сквер
+        if (r < R * 0.26) centerBlock(u0, u1, v0, v1);
+        else if (nearRail < 300 && r > R * 0.3 && roll < 0.42) industryBlock(u0, u1, v0, v1);
+        else if (r < R * 0.62 && roll < 0.2) flatsBlock(u0, u1, v0, v1);
+        else houseBlock(u0, u1, v0, v1, r > R * 0.75);
+      }
+    }
+
+    // Центр: сплошные фасады в 2–4 этажа, иногда большое здание во дворе
+    function centerBlock(u0, u1, v0, v1) {
+      var x;
+      var w;
+      for (x = u0 + 2; x < u1 - 10; x += w + (rnd() < 0.6 ? 0 : range(2, 5))) {
+        w = Math.min(range(14, 32), u1 - 2 - x);
+        var d1 = range(11, 16);
+        rect(x + w / 2, v0 + d1 / 2 + 1, w, d1, range(7, 14));
+        var d2 = range(11, 16);
+        rect(x + w / 2, v1 - d2 / 2 - 1, w, d2, range(7, 14));
+      }
+      for (x = v0 + 20; x < v1 - 28; x += w + range(2, 6)) {
+        w = Math.min(range(14, 26), v1 - 20 - x);
+        rect(u0 + 7.5, x + w / 2, 13, w, range(7, 12));
+        rect(u1 - 7.5, x + w / 2, 13, w, range(7, 12));
+      }
+      if (rnd() < 0.4) rect((u0 + u1) / 2, (v0 + v1) / 2, range(30, 48), range(20, 30), range(12, 19));
+    }
+
+    // Пятиэтажки и девятиэтажки
+    function flatsBlock(u0, u1, v0, v1) {
+      var len = Math.min(u1 - u0 - 18, range(55, 86));
+      var floors = rnd() < 0.25 ? 9 : 5;
+      for (var v = v0 + 16; v + 8 < v1 - 10; v += range(32, 40)) {
+        rect(u0 + 9 + len / 2, v, len, range(12, 14), floors * 3.1 + 1.2);
+      }
+      if (u1 - u0 - len > 34) rect(u1 - 14, (v0 + v1) / 2, 13, Math.min(v1 - v0 - 20, range(40, 64)), 5 * 3.1 + 1.2);
+      if (rnd() < 0.5) rect(u0 + 22, v1 - 16, 28, 16, 6.5);
+    }
+
+    // Промзона у путей: большие корпуса
+    function industryBlock(u0, u1, v0, v1) {
+      var mid = (u0 + u1) / 2;
+      [[u0, mid], [mid, u1]].forEach(function (half) {
+        if (rnd() < 0.2) return;
+        var w = (half[1] - half[0]) * range(0.55, 0.88);
+        var d = (v1 - v0) * range(0.4, 0.82);
+        rect((half[0] + half[1]) / 2, v0 + 8 + d / 2 + range(0, v1 - v0 - d - 16), w, d, range(6, 12));
+      });
+    }
+
+    // Частный сектор: дома вдоль улиц, сараи и бани во дворах
+    function houseBlock(u0, u1, v0, v1, sparse) {
+      var skip = sparse ? 0.3 : 0.12;
+      function lot(cu, cv, alongU, inward) {
+        if (rnd() < skip) return;
+        var w = range(8, 12.5);
+        var d = range(8.5, 13);
+        var s = range(3, 7);
+        var h = rnd() < 0.14 ? range(6.2, 7.6) : range(3.2, 5.2);
+        var off = s + d / 2;
+        if (alongU) rect(cu + range(-2, 2), cv + inward * off, w, d, h);
+        else rect(cu + inward * off, cv + range(-2, 2), d, w, h);
+        if (rnd() < 0.5) {
+          var back = s + d + range(5, 11);
+          var sw = range(4, 6.5);
+          var sd = range(4, 7);
+          if (alongU) rect(cu + range(-5, 5), cv + inward * back, sw, sd, range(2.4, 3.2));
+          else rect(cu + inward * back, cv + range(-5, 5), sd, sw, range(2.4, 3.2));
+        }
+      }
+      var L;
+      var x;
+      for (x = u0 + 3; x + 18 <= u1 - 3; x += L) { L = range(19, 26); lot(x + L / 2, v0, true, 1); }
+      for (x = u0 + 3; x + 18 <= u1 - 3; x += L) { L = range(19, 26); lot(x + L / 2, v1, true, -1); }
+      for (x = v0 + 28; x + 18 <= v1 - 28; x += L) { L = range(19, 26); lot(u0, x + L / 2, false, 1); }
+      for (x = v0 + 28; x + 18 <= v1 - 28; x += L) { L = range(19, 26); lot(u1, x + L / 2, false, -1); }
+    }
+
+    // Вокзал у путей
+    rect(160, railV(160) + 54, 92, 18, 11);
+
+    /* Река и железная дорога */
+    var river = [];
+    for (q = -R * 1.9; q <= R * 1.9; q += 50) river.push(riverU(q), q);
+    city.water.push({ w: 60, pts: river });
+    var rail = [];
+    for (q = -R * 2.2; q <= R * 2.2; q += 100) rail.push(q, railV(q));
+    city.rails.push({ w: 0, pts: rail });
+    [-14, -7, 7, 14].forEach(function (off) {
+      var track = [];
+      for (q = -420; q <= 640; q += 60) track.push(q, railV(q) + off);
+      city.rails.push({ w: 0, pts: track });
+    });
+
     return city;
   }
 
@@ -192,15 +343,15 @@
     var gpu = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
     if (/swiftshader|llvmpipe|software|basic render/i.test(gpu)) still = true;
 
-    var KX = Math.cos(city.lat0 * Math.PI / 180) * 111320;
-    var KY = 110540;
     var LIGHT = norm2([-0.55, 0.62]); // свет с юго-запада, по земле (x, z)
     function norm2(v) { var l = Math.sqrt(v[0] * v[0] + v[1] * v[1]); return [v[0] / l, v[1] / l]; }
     function seedOf(x, y) { var s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); }
 
-    // Дома: стены, крыши и светящиеся рёбра
-    var walls = new Mesh(7); // pos3, shade, d+seed, h, u
-    var edges = new Mesh(6); // pos3, d, h, kind
+    // Дома: стены, крыши и светящиеся рёбра. В дробной части aD — случайное
+    // число дома: по нему в разных домах в разное время загорается свет.
+    var walls = new Mesh(7); // pos3, shade, seed, h, u
+    var edges = new Mesh(6); // pos3, seed, h, kind
+    var spotPool = []; // центры домов — отсюда выбираются места, где загорится тепло
     var LIFT = 1.35; // дома чуть выше настоящих — иначе с высоты птичьего полёта объёма не видно
     city.buildings.forEach(function (b) {
       var r = b.ring;
@@ -208,6 +359,7 @@
       var hh = b.h * LIFT;
       var seed = seedOf(r[0], r[1]) * 0.98;
       var ds = b.d + seed;
+      if (r[0] * r[0] + r[1] * r[1] < (lite ? 1100 : 1450) * (lite ? 1100 : 1450)) spotPool.push([r[0], -r[1]]);
       walls.room(n * 4 + n);
       var u = 0;
       for (var i = 0; i < n; i++) {
@@ -236,20 +388,21 @@
       var tall = hh >= 8;
       for (var e = 0; e < n; e++) {
         var f = (e + 1) % n;
-        var p0 = edges.vert(r[e * 2], hh, -r[e * 2 + 1], b.d, hh, 0);
-        var p1 = edges.vert(r[f * 2], hh, -r[f * 2 + 1], b.d, hh, 0);
+        var p0 = edges.vert(r[e * 2], hh, -r[e * 2 + 1], ds, hh, 0);
+        var p1 = edges.vert(r[f * 2], hh, -r[f * 2 + 1], ds, hh, 0);
         edges.i.push(p0, p1);
         if (tall) {
-          var g0 = edges.vert(r[e * 2], 0, -r[e * 2 + 1], b.d, hh, 1);
-          var g1 = edges.vert(r[e * 2], hh, -r[e * 2 + 1], b.d, hh, 1);
+          var g0 = edges.vert(r[e * 2], 0, -r[e * 2 + 1], ds, hh, 1);
+          var g1 = edges.vert(r[e * 2], hh, -r[e * 2 + 1], ds, hh, 1);
           edges.i.push(g0, g1);
         }
       }
     });
     walls.flush();
     edges.flush();
+    if (!spotPool.length) return;
 
-    // Улицы — светящиеся ленты; по ним бежит волна
+    // Улицы — светящиеся ленты; в тёплом квартале по ним бегут огоньки
     var roads = new Mesh(6); // x, z, side, d, major, along
     city.roads.forEach(function (rd) {
       var p = rd.pts;
@@ -275,7 +428,6 @@
 
     // Реки и железная дорога — ленты по земле
     var water = new Mesh(5); // x, z, side, along, kind
-    var anchors = [];
     function ribbon(line, kind, w) {
       var p = line.pts;
       var n = p.length / 2;
@@ -295,34 +447,9 @@
         along += len;
       }
     }
-    var riverNames = { 1: 'р. Ворона', 2: 'р. Хопёр' };
-    var nearest = {};
-    city.water.forEach(function (w) {
-      ribbon(w, 0, w.w / 2);
-      if (!riverNames[w.name]) return;
-      for (var i = 0; i < w.pts.length; i += 2) {
-        var dd = Math.sqrt(w.pts[i] * w.pts[i] + w.pts[i + 1] * w.pts[i + 1]);
-        if (!nearest[w.name] || dd < nearest[w.name].dd) nearest[w.name] = { dd: dd, x: w.pts[i], y: w.pts[i + 1] };
-      }
-    });
-    Object.keys(nearest).forEach(function (key) {
-      var a = nearest[key];
-      if (a.dd < (lite ? 1500 : 2300)) anchors.push({ text: riverNames[key], x: a.x, y: 6, z: -a.y });
-    });
+    city.water.forEach(function (w) { ribbon(w, 0, w.w / 2); });
     city.rails.forEach(function (r) { ribbon(r, 1, 3); });
     water.flush();
-
-    // Трубы: столбы тёплого света
-    var beams = new Mesh(4); // x, z, cx, cy
-    city.sources.forEach(function (s) {
-      beams.room(4);
-      var b0 = beams.vert(s[0], -s[1], -1, 0);
-      var b1 = beams.vert(s[0], -s[1], 1, 0);
-      var b2 = beams.vert(s[0], -s[1], 1, 1);
-      var b3 = beams.vert(s[0], -s[1], -1, 1);
-      beams.i.push(b0, b1, b2, b0, b2, b3);
-    });
-    beams.flush();
 
     // Земля: один большой квадрат, сетку рисует шейдер
     var ground = new Mesh(2);
@@ -344,20 +471,33 @@
       'uniform mat4 uVP;',
       'uniform vec3 uEye;',
       'uniform float uTime;',
-      'uniform float uFront;',  // сколько метров по улицам прошла волна
-      'uniform float uWarm;',   // 1 — город прогрет, 0 — остыл
-      'uniform float uFlash;',  // яркость гребня волны
-      'uniform float uGrow;',   // дома «вырастают» при появлении
-      'uniform vec4 uProbe;',   // точка под курсором: x, z, радиус, сила
-      'uniform vec2 uFade;',    // край модели: начало и конец растворения, м
-      'uniform vec2 uFog;',     // дымка по расстоянию от камеры, м
+      'uniform float uGrow;',     // дома «вырастают» при появлении
+      'uniform vec2 uFade;',      // край модели: начало и конец растворения, м
+      'uniform vec2 uFog;',       // дымка по расстоянию от камеры, м
+      'uniform vec4 uSpot[4];',   // тёплые кварталы: x, z, радиус, сила
+      'uniform float uFront[4];', // яркость фронта, пока квартал разгорается
       'float fogOf(vec3 w){',
       '  float f = smoothstep(uFog.x, uFog.y, distance(uEye, w));',
       '  return max(f, smoothstep(uFade.x, uFade.y, length(w.xz)));',
       '}',
-      'float heatOf(float d){ return smoothstep(d - 90.0, d + 90.0, uFront) * uWarm; }',
-      'float flashOf(float d){ float k = (uFront - d) / 75.0; return exp(-k * k) * uFlash; }',
-      'float probeOf(vec2 p){ return uProbe.w * (1.0 - smoothstep(uProbe.z * 0.55, uProbe.z, distance(p, uProbe.xy))); }',
+      'float heatAt(vec2 p){',
+      '  float h = 0.0;',
+      '  for (int i = 0; i < 4; i++) {',
+      '    float d = distance(p, uSpot[i].xy);',
+      '    h = max(h, uSpot[i].w * (1.0 - smoothstep(uSpot[i].z * 0.7, uSpot[i].z + 1.0, d)));',
+      '  }',
+      '  return h;',
+      '}',
+      'float frontAt(vec2 p){',
+      '  float f = 0.0;',
+      '  for (int i = 0; i < 4; i++) {',
+      '    float k = (distance(p, uSpot[i].xy) - uSpot[i].z) / 45.0;',
+      '    f = max(f, uFront[i] * exp(-k * k));',
+      '  }',
+      '  return f;',
+      '}',
+      // Отдельные дома по всему городу изредка вспыхивают сами по себе
+      'float twinkle(float seed){ return pow(max(0.0, sin(uTime * 0.21 + seed * 61.0)), 30.0); }',
       'float growOf(vec2 p){ float delay = clamp(length(p) / 1800.0, 0.0, 1.0) * 0.45; return smoothstep(delay, delay + 0.55, uGrow); }',
     ].join('\n');
     var BG = 'const vec3 BG = vec3(0.027, 0.070, 0.113);';
@@ -368,7 +508,6 @@
       [HEAD, COMMON, 'attribute vec2 aPos; varying vec3 vW;',
         'void main(){ vW = vec3(aPos.x, 0.0, aPos.y); gl_Position = uVP * vec4(vW, 1.0); }'].join('\n'),
       ['#extension GL_OES_standard_derivatives : enable', HEAD, COMMON, BG,
-        'uniform vec4 uSrc[8]; uniform float uSrcN; uniform float uPulse;',
         'varying vec3 vW;',
         'void main(){',
         '  vec2 p = vW.xz;',
@@ -377,17 +516,9 @@
         '  float r = length(p);',
         '  vec3 c = BG + vec3(0.030, 0.075, 0.105) * (1.0 - smoothstep(0.0, 2400.0, r));',
         '  c += vec3(0.16, 0.36, 0.50) * line * 0.30;',
-        '  for (int i = 0; i < 8; i++) {',
-        '    if (float(i) >= uSrcN) break;',
-        '    float dd = distance(p, uSrc[i].xy);',
-        '    float k = (dd - uPulse * 520.0) / 26.0;',
-        '    c += vec3(1.0, 0.55, 0.22) * exp(-k * k) * exp(-uPulse * 0.55) * 0.35 * uWarm;',
-        '    c += vec3(1.0, 0.5, 0.2) * exp(-dd / 60.0) * 0.25;',
-        '  }',
-        '  float pd = distance(p, uProbe.xy);',
-        '  c += vec3(0.35, 0.85, 1.0) * (1.0 - smoothstep(0.0, 8.0, abs(pd - uProbe.z))) * uProbe.w * 1.6;',
-        '  c += vec3(0.35, 0.85, 1.0) * (1.0 - smoothstep(0.0, 6.0, pd)) * uProbe.w * 1.2;',
-        '  c += vec3(0.35, 0.85, 1.0) * (1.0 - smoothstep(0.0, uProbe.z, pd)) * uProbe.w * 0.05;',
+        '  float heat = heatAt(p);',
+        '  c += vec3(0.50, 0.22, 0.07) * heat * 0.16;',
+        '  c += vec3(1.0, 0.62, 0.30) * frontAt(p) * 0.45;',
         '  gl_FragColor = vec4(mix(c, BG, fogOf(vW)), 1.0);',
         '}'].join('\n'),
       ['aPos']
@@ -425,13 +556,12 @@
         'varying vec3 vW; varying float vSide; varying float vD; varying float vMajor;',
         'void main(){',
         '  float core = 1.0 - smoothstep(0.15, 1.0, abs(vSide));',
-        '  float heat = heatOf(vD);',
+        '  float heat = heatAt(vW.xz);',
         '  vec3 c = vec3(0.13, 0.32, 0.48) * (0.55 + 0.45 * vMajor);',
         '  c = mix(c, vec3(0.62, 0.30, 0.11) * (0.7 + 0.3 * vMajor), heat);',
         '  float flow = smoothstep(0.82, 1.0, fract((vD - uTime * 70.0) / 55.0)) * heat;',
         '  c += vec3(1.0, 0.66, 0.36) * flow * 0.55;',
-        '  c += vec3(1.0, 0.86, 0.62) * flashOf(vD) * 1.5;',
-        '  c += vec3(0.35, 0.85, 1.0) * probeOf(vW.xz) * 0.35;',
+        '  c += vec3(1.0, 0.86, 0.62) * frontAt(vW.xz) * 1.4;',
         '  gl_FragColor = vec4(c * core * (1.0 - fogOf(vW)), 1.0);',
         '}'].join('\n'),
       ['aPos', 'aSide', 'aD', 'aMajor', 'aAlong']
@@ -439,18 +569,19 @@
 
     progs.walls = program(
       [HEAD, COMMON, 'attribute vec3 aPos; attribute float aShade; attribute float aD; attribute float aH; attribute float aU;',
-        'varying vec3 vW; varying float vShade; varying float vHeat; varying float vFlash; varying float vU; varying float vSeed; varying float vH; varying float vProbe; varying float vFogK;',
+        'varying vec3 vW; varying float vShade; varying float vHeat; varying float vFlash; varying float vU; varying float vSeed; varying float vH; varying float vFogK;',
         'void main(){',
         '  float g = growOf(aPos.xz);',
         '  vW = vec3(aPos.x, aPos.y * g, aPos.z);',
         '  vShade = aShade; vU = aU; vH = aH * g;',
-        '  float d = floor(aD); vSeed = fract(aD);',
-        '  vHeat = heatOf(d); vFlash = flashOf(d); vProbe = probeOf(aPos.xz);',
+        '  vSeed = fract(aD);',
+        '  vHeat = max(heatAt(aPos.xz), twinkle(vSeed) * 0.6);',
+        '  vFlash = frontAt(aPos.xz);',
         '  vFogK = fogOf(vW);',
         '  gl_Position = uVP * vec4(vW, 1.0);',
         '}'].join('\n'),
       [HEAD, COMMON, BG,
-        'varying vec3 vW; varying float vShade; varying float vHeat; varying float vFlash; varying float vU; varying float vSeed; varying float vH; varying float vProbe; varying float vFogK;',
+        'varying vec3 vW; varying float vShade; varying float vHeat; varying float vFlash; varying float vU; varying float vSeed; varying float vH; varying float vFogK;',
         'float hash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }',
         'void main(){',
         '  vec3 base = vec3(0.050, 0.098, 0.145);',
@@ -471,7 +602,6 @@
         '    c = base * 1.35 + vec3(0.85, 0.40, 0.15) * vHeat * 0.12;',
         '  }',
         '  c += vec3(1.0, 0.78, 0.5) * vFlash * 0.32;',
-        '  c += vec3(0.35, 0.85, 1.0) * vProbe * 0.3;',
         '  gl_FragColor = vec4(mix(c, BG, vFogK), 1.0);',
         '}'].join('\n'),
       ['aPos', 'aShade', 'aD', 'aH', 'aU']
@@ -479,40 +609,23 @@
 
     progs.edges = program(
       [HEAD, COMMON, 'attribute vec3 aPos; attribute float aD; attribute float aH; attribute float aKind;',
-        'varying vec3 vW; varying float vHeat; varying float vFlash; varying float vKind; varying float vProbe;',
+        'varying vec3 vW; varying float vHeat; varying float vFlash; varying float vKind;',
         'void main(){',
         '  float g = growOf(aPos.xz);',
         '  vW = vec3(aPos.x, aPos.y * g, aPos.z);',
-        '  vHeat = heatOf(aD); vFlash = flashOf(aD); vKind = aKind; vProbe = probeOf(aPos.xz);',
+        '  vHeat = max(heatAt(aPos.xz), twinkle(fract(aD)) * 0.6);',
+        '  vFlash = frontAt(aPos.xz); vKind = aKind;',
         '  gl_Position = uVP * vec4(vW, 1.0);',
         '}'].join('\n'),
       [HEAD, COMMON,
-        'varying vec3 vW; varying float vHeat; varying float vFlash; varying float vKind; varying float vProbe;',
+        'varying vec3 vW; varying float vHeat; varying float vFlash; varying float vKind;',
         'void main(){',
         '  vec3 c = mix(vec3(0.26, 0.58, 0.82) * 0.75, vec3(1.0, 0.56, 0.22) * 0.9, vHeat);',
         '  c += vec3(1.0, 0.88, 0.66) * vFlash * 1.1;',
-        '  c += vec3(0.4, 0.9, 1.0) * vProbe * 1.5;',
         '  float a = mix(0.62, 0.34, vKind) * (1.0 - fogOf(vW));',
         '  gl_FragColor = vec4(c * a, 1.0);',
         '}'].join('\n'),
       ['aPos', 'aD', 'aH', 'aKind']
-    );
-
-    progs.beams = program(
-      [HEAD, COMMON, 'attribute vec2 aPos; attribute vec2 aCorner; uniform vec3 uRight;',
-        'varying vec2 vC; varying float vFogK;',
-        'void main(){',
-        '  vec3 w = vec3(aPos.x, 0.0, aPos.y) + uRight * aCorner.x * 7.0 + vec3(0.0, aCorner.y * 190.0, 0.0);',
-        '  vC = aCorner; vFogK = fogOf(w);',
-        '  gl_Position = uVP * vec4(w, 1.0);',
-        '}'].join('\n'),
-      [HEAD, COMMON, 'uniform float uPulse;',
-        'varying vec2 vC; varying float vFogK;',
-        'void main(){',
-        '  float a = pow(1.0 - vC.y, 2.2) * (1.0 - abs(vC.x)) * (0.45 + 0.55 * exp(-uPulse * 0.9));',
-        '  gl_FragColor = vec4(vec3(1.0, 0.6, 0.28) * a * 0.8 * (1.0 - vFogK), 1.0);',
-        '}'].join('\n'),
-      ['aPos', 'aCorner']
     );
 
     for (var pk in progs) if (!progs[pk]) return;
@@ -562,7 +675,6 @@
       roads: upload(roads, [2, 1, 1, 1, 1]),
       walls: upload(walls, [3, 1, 1, 1, 1]),
       edges: upload(edges, [3, 1, 1, 1]),
-      beams: upload(beams, [2, 2]),
     };
     var maxAttrs = 5;
 
@@ -615,50 +727,21 @@
       }
       return o;
     }
-    function invert(m) {
-      var inv = new Array(16);
-      inv[0] = m[5] * m[10] * m[15] - m[5] * m[11] * m[14] - m[9] * m[6] * m[15] + m[9] * m[7] * m[14] + m[13] * m[6] * m[11] - m[13] * m[7] * m[10];
-      inv[4] = -m[4] * m[10] * m[15] + m[4] * m[11] * m[14] + m[8] * m[6] * m[15] - m[8] * m[7] * m[14] - m[12] * m[6] * m[11] + m[12] * m[7] * m[10];
-      inv[8] = m[4] * m[9] * m[15] - m[4] * m[11] * m[13] - m[8] * m[5] * m[15] + m[8] * m[7] * m[13] + m[12] * m[5] * m[11] - m[12] * m[7] * m[9];
-      inv[12] = -m[4] * m[9] * m[14] + m[4] * m[10] * m[13] + m[8] * m[5] * m[14] - m[8] * m[6] * m[13] - m[12] * m[5] * m[10] + m[12] * m[6] * m[9];
-      inv[1] = -m[1] * m[10] * m[15] + m[1] * m[11] * m[14] + m[9] * m[2] * m[15] - m[9] * m[3] * m[14] - m[13] * m[2] * m[11] + m[13] * m[3] * m[10];
-      inv[5] = m[0] * m[10] * m[15] - m[0] * m[11] * m[14] - m[8] * m[2] * m[15] + m[8] * m[3] * m[14] + m[12] * m[2] * m[11] - m[12] * m[3] * m[10];
-      inv[9] = -m[0] * m[9] * m[15] + m[0] * m[11] * m[13] + m[8] * m[1] * m[15] - m[8] * m[3] * m[13] - m[12] * m[1] * m[11] + m[12] * m[3] * m[9];
-      inv[13] = m[0] * m[9] * m[14] - m[0] * m[10] * m[13] - m[8] * m[1] * m[14] + m[8] * m[2] * m[13] + m[12] * m[1] * m[10] - m[12] * m[2] * m[9];
-      inv[2] = m[1] * m[6] * m[15] - m[1] * m[7] * m[14] - m[5] * m[2] * m[15] + m[5] * m[3] * m[14] + m[13] * m[2] * m[7] - m[13] * m[3] * m[6];
-      inv[6] = -m[0] * m[6] * m[15] + m[0] * m[7] * m[14] + m[4] * m[2] * m[15] - m[4] * m[3] * m[14] - m[12] * m[2] * m[7] + m[12] * m[3] * m[6];
-      inv[10] = m[0] * m[5] * m[15] - m[0] * m[7] * m[13] - m[4] * m[1] * m[15] + m[4] * m[3] * m[13] + m[12] * m[1] * m[7] - m[12] * m[3] * m[5];
-      inv[14] = -m[0] * m[5] * m[14] + m[0] * m[6] * m[13] + m[4] * m[1] * m[14] - m[4] * m[2] * m[13] - m[12] * m[1] * m[6] + m[12] * m[2] * m[5];
-      inv[3] = -m[1] * m[6] * m[11] + m[1] * m[7] * m[10] + m[5] * m[2] * m[11] - m[5] * m[3] * m[10] - m[9] * m[2] * m[7] + m[9] * m[3] * m[6];
-      inv[7] = m[0] * m[6] * m[11] - m[0] * m[7] * m[10] - m[4] * m[2] * m[11] + m[4] * m[3] * m[10] + m[8] * m[2] * m[7] - m[8] * m[3] * m[6];
-      inv[11] = -m[0] * m[5] * m[11] + m[0] * m[7] * m[9] + m[4] * m[1] * m[11] - m[4] * m[3] * m[9] - m[8] * m[1] * m[7] + m[8] * m[3] * m[5];
-      inv[15] = m[0] * m[5] * m[10] - m[0] * m[6] * m[9] - m[4] * m[1] * m[10] + m[4] * m[2] * m[9] + m[8] * m[1] * m[6] - m[8] * m[2] * m[5];
-      var det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
-      if (!det) return null;
-      for (var i = 0; i < 16; i++) inv[i] /= det;
-      return inv;
-    }
 
     var W = 1;
     var H = 1;
-    var pxScale = 1;
-    var blockers = []; // текст и панель: под ними подписи не показываем
     var quality = 1;
     var wide = true;
 
     function resize() {
       var r = hero.getBoundingClientRect();
       var dpr = window.devicePixelRatio || 1;
-      pxScale = (coarse ? Math.min(dpr, 1.5) : Math.min(dpr, 1.25)) * quality;
+      var px = (coarse ? Math.min(dpr, 1.5) : Math.min(dpr, 1.25)) * quality;
       W = Math.max(1, r.width);
       H = Math.max(1, r.height);
       wide = W >= 980;
-      blockers = [].map.call(hero.querySelectorAll('.hero__in > *, .hero__hud'), function (el) {
-        var b = el.getBoundingClientRect();
-        return [b.left - r.left - 16, b.top - r.top - 16, b.right - r.left + 16, b.bottom - r.top + 16];
-      });
-      var w = Math.max(1, Math.round(W * pxScale));
-      var h = Math.max(1, Math.round(H * pxScale));
+      var w = Math.max(1, Math.round(W * px));
+      var h = Math.max(1, Math.round(H * px));
       if (canvas.width !== w || canvas.height !== h) {
         canvas.width = w;
         canvas.height = h;
@@ -670,61 +753,110 @@
     /* ---------- Движение ---------- */
 
     var DEG = Math.PI / 180;
-    var cam = { yaw: 0, elev: 0, dist: 0, vp: null, inv: null, eye: [0, 0, 0], right: [1, 0, 0] };
-    var par = { x: 0, y: 0, tx: 0, ty: 0 };
+    var cam = { vp: null, eye: [0, 0, 0] };
     var scrollK = 0;
-    var probe = { x: 0, z: 0, amp: 0, target: 0, has: false };
-    var srcArr = new Float32Array(32);
-    city.sources.slice(0, 8).forEach(function (s, i) { srcArr[i * 4] = s[0]; srcArr[i * 4 + 1] = -s[1]; });
 
     function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
     function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 
-    var WAVE_START = 1.6;
-    var PERIOD = 13;
-    function waveAt(t) {
-      if (still) return { front: 1e5, warm: 1, flash: 0, pulse: 9 };
-      var tau = t - WAVE_START;
-      if (tau < 0) return { front: -500, warm: 1, flash: 0, pulse: 9 };
-      tau = tau % PERIOD;
-      var warm = tau < 9.5 ? 1 : 1 - clamp01((tau - 9.5) / 1.8);
-      return { front: tau * 520, warm: warm, flash: tau < 7.5 ? 1 : 0, pulse: tau };
-    }
-
-    function camera(t, dt) {
+    function camera(t) {
       var intro = still ? 1 : ease(clamp01(t / 3.4));
-      var k = 1 - Math.exp(-dt * 3);
-      par.x += (par.tx - par.x) * k;
-      par.y += (par.ty - par.y) * k;
-      cam.yaw = (-34 + 34 * intro) * DEG + (still ? 0 : t * 1.5 * DEG) + par.x * 6 * DEG;
-      cam.elev = (80 - (wide ? 53 : 48) * intro) * DEG - scrollK * 8 * DEG + par.y * 3.5 * DEG;
-      cam.dist = 3500 - 1400 * intro - scrollK * 380;
-      if (!wide) cam.dist *= 1.15;
+      var yaw = (-34 + 34 * intro) * DEG + (still ? 0 : t * 1.5 * DEG);
+      var elev = (80 - (wide ? 53 : 48) * intro) * DEG - scrollK * 8 * DEG;
+      var dist = (3500 - 1400 * intro - scrollK * 380) * (wide ? 1 : 1.15);
       var tx = wide ? 160 : 0;
       var tz = wide ? 40 : 60;
-      var ce = Math.cos(cam.elev);
-      var eye = [tx + cam.dist * ce * Math.sin(cam.yaw), cam.dist * Math.sin(cam.elev), tz + cam.dist * ce * Math.cos(cam.yaw)];
+      var ce = Math.cos(elev);
+      var eye = [tx + dist * ce * Math.sin(yaw), dist * Math.sin(elev), tz + dist * ce * Math.cos(yaw)];
       cam.eye = eye;
-      cam.right = [Math.cos(cam.yaw), 0, -Math.sin(cam.yaw)];
       var proj = perspective(36 * DEG, W / H, 20, 14000, wide ? 0.2 : 0, wide ? -0.2 : -0.46);
       cam.vp = mul(proj, lookAt(eye, [tx, 0, tz]));
-      cam.inv = null;
     }
 
-    function setCommon(pr, t, wave) {
+    // Тёплые кварталы: появляются в случайных местах, разгораются, остывают
+    var spots = [];
+    var nextSpawn = 1.3;
+    var lastPick = null;
+    var spotU = new Float32Array(16);
+    var spotF = new Float32Array(4);
+
+    // Место выбираем там, где город хорошо виден: не под текстом и не у
+    // самого горизонта, и подальше от предыдущего
+    function onScreen(p) {
+      var m = cam.vp;
+      if (!m) return true;
+      var cx = m[0] * p[0] + m[8] * p[1] + m[12];
+      var cy = m[1] * p[0] + m[9] * p[1] + m[13];
+      var cw = m[3] * p[0] + m[11] * p[1] + m[15];
+      if (cw <= 0) return false;
+      var x = cx / cw * 0.5 + 0.5;
+      var y = 0.5 - cy / cw * 0.5;
+      return wide ? x > 0.46 && x < 0.97 && y > 0.36 && y < 0.95 : x > 0.08 && x < 0.92 && y > 0.58 && y < 0.97;
+    }
+    function pick() {
+      var fallback = null;
+      for (var tries = 0; tries < 24; tries++) {
+        var p = spotPool[(Math.random() * spotPool.length) | 0];
+        var far = !lastPick || Math.abs(p[0] - lastPick[0]) + Math.abs(p[1] - lastPick[1]) > 520;
+        if (far && !fallback) fallback = p;
+        if (far && onScreen(p)) return (lastPick = p);
+      }
+      return (lastPick = fallback || spotPool[(Math.random() * spotPool.length) | 0]);
+    }
+    function spawn(t) {
+      var p = pick();
+      spots.push({ x: p[0], z: p[1], t0: t, R: (lite ? 220 : 260) + Math.random() * (lite ? 300 : 440), life: 6.5 + Math.random() * 3 });
+      if (spots.length > 4) spots.shift();
+    }
+    // Для неподвижного кадра — три уже прогретых квартала
+    function settle(t) {
+      var chosen = [];
+      var n = spotPool.length;
+      for (var k = 0; k < n && chosen.length < 3; k++) {
+        var p = spotPool[(Math.floor(n * 0.17) + k * 7919) % n];
+        if (!onScreen(p)) continue;
+        if (chosen.some(function (c) { return Math.abs(c[0] - p[0]) + Math.abs(c[1] - p[1]) < 520; })) continue;
+        chosen.push(p);
+      }
+      spots = chosen.map(function (p, i) {
+        return { x: p[0], z: p[1], t0: t - 3 - i * 0.7, R: lite ? 380 : 520, life: 1e6 };
+      });
+      nextSpawn = t + 1.5;
+    }
+    function updateSpots(t) {
+      if (!still) {
+        while (t >= nextSpawn) {
+          spawn(nextSpawn);
+          nextSpawn += 1.6 + Math.random() * 1.6;
+        }
+      }
+      spots = spots.filter(function (s) { return t - s.t0 < s.life; });
+      for (var i = 0; i < 4; i++) {
+        var s = spots[i];
+        if (!s) {
+          spotU[i * 4] = -1e5; spotU[i * 4 + 1] = -1e5; spotU[i * 4 + 2] = 0; spotU[i * 4 + 3] = 0;
+          spotF[i] = 0;
+          continue;
+        }
+        var age = t - s.t0;
+        var g = 1 - Math.pow(1 - clamp01(age / 2.2), 3);
+        var a = clamp01(age / 0.35) * clamp01((s.life - age) / 2.4);
+        spotU[i * 4] = s.x; spotU[i * 4 + 1] = s.z; spotU[i * 4 + 2] = s.R * g; spotU[i * 4 + 3] = a;
+        spotF[i] = (1 - g) * a;
+      }
+    }
+
+    function setCommon(pr, t) {
       var u = pr.u;
       gl.useProgram(pr.p);
       if (u.uVP) gl.uniformMatrix4fv(u.uVP, false, cam.vp);
       if (u.uEye) gl.uniform3f(u.uEye, cam.eye[0], cam.eye[1], cam.eye[2]);
       if (u.uTime) gl.uniform1f(u.uTime, t);
-      if (u.uFront) gl.uniform1f(u.uFront, wave.front);
-      if (u.uWarm) gl.uniform1f(u.uWarm, wave.warm);
-      if (u.uFlash) gl.uniform1f(u.uFlash, wave.flash);
       if (u.uGrow) gl.uniform1f(u.uGrow, still ? 1 : clamp01((t - 0.5) / 2.6));
-      if (u.uProbe) gl.uniform4f(u.uProbe, probe.x, probe.z, 150, probe.amp);
       if (u.uFade) gl.uniform2f(u.uFade, lite ? 950 : 1250, lite ? 1320 : 1760);
       if (u.uFog) gl.uniform2f(u.uFog, 1600, 5200);
-      if (u.uPulse) gl.uniform1f(u.uPulse, wave.pulse);
+      if (u.uSpot) gl.uniform4fv(u.uSpot, spotU);
+      if (u.uFront) gl.uniform1fv(u.uFront, spotF);
     }
 
     var t0 = performance.now();
@@ -732,13 +864,10 @@
 
     function render(now) {
       var t = (now - t0) / 1000;
-      var dt = Math.min(0.1, Math.max(0, (now - lastNow) / 1000));
       lastNow = now;
       if (still) t = 30;
-      camera(t, dt);
-      if (pointer || probe.target) aimProbe(now);
-      var wave = waveAt(t);
-      probe.amp += (probe.target - probe.amp) * (1 - Math.exp(-dt * 6));
+      camera(t);
+      updateSpots(t);
 
       gl.clearColor(0.027, 0.070, 0.113, 1);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -747,15 +876,13 @@
       gl.disable(gl.DEPTH_TEST);
       gl.depthMask(false);
       gl.disable(gl.BLEND);
-      setCommon(progs.ground, t, wave);
-      gl.uniform4fv(progs.ground.u.uSrc, srcArr);
-      gl.uniform1f(progs.ground.u.uSrcN, Math.min(8, city.sources.length));
+      setCommon(progs.ground, t);
       drawGeo(geo.ground, gl.TRIANGLES);
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE);
-      setCommon(progs.water, t, wave);
+      setCommon(progs.water, t);
       drawGeo(geo.water, gl.TRIANGLES);
-      setCommon(progs.roads, t, wave);
+      setCommon(progs.roads, t);
       drawGeo(geo.roads, gl.TRIANGLES);
 
       // Дома — непрозрачные, с глубиной
@@ -765,129 +892,17 @@
       gl.depthMask(true);
       gl.enable(gl.POLYGON_OFFSET_FILL);
       gl.polygonOffset(1, 1);
-      setCommon(progs.walls, t, wave);
+      setCommon(progs.walls, t);
       drawGeo(geo.walls, gl.TRIANGLES);
       gl.disable(gl.POLYGON_OFFSET_FILL);
 
-      // Рёбра и столбы света — поверх, сложением
+      // Рёбра домов — поверх, сложением
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE);
       gl.depthMask(false);
-      setCommon(progs.edges, t, wave);
+      setCommon(progs.edges, t);
       drawGeo(geo.edges, gl.LINES);
-      setCommon(progs.beams, t, wave);
-      gl.uniform3f(progs.beams.u.uRight, cam.right[0], cam.right[1], cam.right[2]);
-      drawGeo(geo.beams, gl.TRIANGLES);
       gl.depthMask(true);
-
-      placeLabels();
-    }
-
-    /* ---------- Подписи рек и координаты под курсором ---------- */
-
-    var labelEls = [];
-    if (labelsBox) {
-      anchors.forEach(function (a) {
-        var el = document.createElement('span');
-        el.className = 'twin-label';
-        el.textContent = a.text;
-        labelsBox.appendChild(el);
-        labelEls.push({ el: el, a: a, x: -1, y: -1, on: null });
-      });
-    }
-    function placeLabels() {
-      var m = cam.vp;
-      labelEls.forEach(function (l) {
-        var a = l.a;
-        var cx = m[0] * a.x + m[4] * a.y + m[8] * a.z + m[12];
-        var cy = m[1] * a.x + m[5] * a.y + m[9] * a.z + m[13];
-        var cw = m[3] * a.x + m[7] * a.y + m[11] * a.z + m[15];
-        var on = cw > 0;
-        var x = 0;
-        var y = 0;
-        if (on) {
-          x = (cx / cw * 0.5 + 0.5) * W;
-          y = (1 - (cy / cw * 0.5 + 0.5)) * H;
-          on = x > 24 && x < W - 24 && y > 24 && y < H - 24;
-          var lw = l.w || (l.w = l.el.offsetWidth + 8);
-          for (var b = 0; on && b < blockers.length; b++) {
-            var q = blockers[b];
-            if (x + lw > q[0] && x - 8 < q[2] && y > q[1] && y < q[3]) on = false;
-          }
-        }
-        if (on !== l.on) { l.el.style.opacity = on ? '1' : '0'; l.on = on; }
-        if (on && (Math.abs(x - l.x) > 0.4 || Math.abs(y - l.y) > 0.4)) {
-          l.el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)';
-          l.x = x;
-          l.y = y;
-        }
-      });
-    }
-
-    function fmt(v) { return v.toFixed(4).replace('.', ','); }
-    function showCoord(x, z) {
-      if (!coordOut) return;
-      var lat = city.lat0 + (-z) / KY;
-      var lon = city.lon0 + x / KX;
-      coordOut.textContent = fmt(lat) + '° с. ш. · ' + fmt(lon) + '° в. д.';
-    }
-    showCoord(0, 0);
-
-    function groundAt(clientX, clientY) {
-      var r = hero.getBoundingClientRect();
-      var nx = ((clientX - r.left) / W) * 2 - 1;
-      var ny = 1 - ((clientY - r.top) / H) * 2;
-      if (!cam.inv) cam.inv = invert(cam.vp);
-      var m = cam.inv;
-      if (!m) return null;
-      function un(z) {
-        var x = m[0] * nx + m[4] * ny + m[8] * z + m[12];
-        var y = m[1] * nx + m[5] * ny + m[9] * z + m[13];
-        var zz = m[2] * nx + m[6] * ny + m[10] * z + m[14];
-        var w = m[3] * nx + m[7] * ny + m[11] * z + m[15];
-        return [x / w, y / w, zz / w];
-      }
-      var a = un(-1);
-      var b = un(1);
-      if (a[1] === b[1]) return null;
-      var k = a[1] / (a[1] - b[1]);
-      if (k < 0 || k > 1) return null;
-      var gx = a[0] + (b[0] - a[0]) * k;
-      var gz = a[2] + (b[2] - a[2]) * k;
-      if (Math.sqrt(gx * gx + gz * gz) > (lite ? 1400 : 1900)) return null;
-      return [gx, gz];
-    }
-
-    // Курсор запоминаем, а точку на земле пересчитываем каждый кадр:
-    // город медленно вращается, и кольцо должно оставаться под курсором
-    var pointer = null;
-    var coordAt = 0;
-    function aimProbe(now) {
-      var g = pointer ? groundAt(pointer[0], pointer[1]) : null;
-      probe.target = g ? 1 : 0;
-      if (!g) return;
-      probe.x = g[0];
-      probe.z = g[1];
-      if (now - coordAt > 90) { showCoord(g[0], g[1]); coordAt = now; }
-    }
-    if (!still && mq('(hover: hover) and (pointer: fine)')) {
-      hero.addEventListener('pointermove', function (e) {
-        if (e.pointerType !== 'mouse') return;
-        var r = hero.getBoundingClientRect();
-        par.tx = ((e.clientX - r.left) / W - 0.5) * 2;
-        par.ty = ((e.clientY - r.top) / H - 0.5) * 2;
-        var overText = e.target.closest && e.target.closest('.hero__in > *, .hero__hud');
-        pointer = overText ? null : [e.clientX, e.clientY];
-        if (!running) { aimProbe(performance.now()); render(performance.now()); }
-        wake();
-      }, { passive: true });
-      hero.addEventListener('pointerleave', function () {
-        par.tx = 0;
-        par.ty = 0;
-        pointer = null;
-        probe.target = 0;
-        showCoord(0, 0);
-      });
     }
 
     function onScroll() {
@@ -942,12 +957,13 @@
       cancelAnimationFrame(raf);
     }
     function sync() { if (blocked()) stop(); else start(); }
-    function wake() { if (!running) start(); }
 
-    // Остановленную заранее сцену показываем уже собранной
-    if (stoppedByUser()) t0 = performance.now() - 30000;
-
+    // Неподвижный кадр и остановленная заранее сцена — город уже собран,
+    // три квартала прогреты там, где их видно
+    var settled = still || stoppedByUser();
+    if (settled && !still) t0 = performance.now() - 30000;
     resize();
+    if (settled) { camera(30); settle(30); }
     render(performance.now());
     hero.classList.add('is-live');
     sync();
