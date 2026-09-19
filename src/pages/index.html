@@ -4,20 +4,9 @@ description: Официальный сайт МУП БГО ВО «Борисог
 crumbs: no
 ---
 
-<section class="hero">
-  <svg class="hero__art" viewBox="0 0 1200 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <g fill="none" stroke="#7fb2dd" stroke-width="2">
-      <path d="M-20 300h300l40-40h180l40 40h340l50-50h330"/>
-      <path d="M-20 350h240l50-50h200l45 45h300l60-60h345"/>
-      <path d="M-20 250h180l60 60h220l35-35h280l55 55h390"/>
-    </g>
-    <g fill="#7fb2dd">
-      <circle cx="280" cy="300" r="6"/><circle cx="500" cy="260" r="6"/><circle cx="840" cy="300" r="6"/>
-      <circle cx="290" cy="300" r="6"/><circle cx="540" cy="345" r="6"/><circle cx="900" cy="290" r="6"/>
-      <circle cx="240" cy="250" r="6"/><circle cx="520" cy="275" r="6"/>
-    </g>
-  </svg>
-
+<section class="hero hero--twin" data-twin>
+  <canvas class="hero__canvas u-decor" aria-hidden="true" data-scene></canvas>
+  <div class="hero__shade u-decor" aria-hidden="true"></div>
   <div class="wrap hero__in">
     <div>
       <h1>Тепло в дома Борисоглебского городского округа</h1>
@@ -27,29 +16,44 @@ crumbs: no
           <svg class="ico ico--sm" aria-hidden="true"><use href="/img/icons.svg#i-meter"></use></svg>
           Передать показания
         </a>
-        <a class="btn btn--ghost" style="background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.45)" href="/otklyucheniya.html">
+        <a class="btn btn--ghost btn--on-dark" href="/otklyucheniya.html">
           <svg class="ico ico--sm" aria-hidden="true"><use href="/img/icons.svg#i-wrench"></use></svg>
           Отключения и работы
         </a>
       </div>
     </div>
 
-    <div class="hero__facts">
-      <div class="fact">
-        <span class="fact__num">{{@contacts.dispatcher}}</span>
-        <span class="fact__label">Аварийно-диспетчерская служба, круглосуточно</span>
+    <aside class="status" data-status data-from="{{readings.periodFrom}}" data-to="{{readings.periodTo}}" aria-labelledby="status-title">
+      <div class="status__head">
+        <span class="status__live" aria-hidden="true"></span>
+        <h2 class="status__title" id="status-title">На сегодня</h2>
+        <span class="status__clock" data-status-clock></span>
+        <button type="button" class="scene-toggle u-decor" data-scene-toggle aria-pressed="false" hidden>
+          <svg class="ico ico--sm" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path class="scene-toggle__pause" d="M9 6v12M15 6v12"/>
+            <path class="scene-toggle__play" d="M8 5.5v13l11-6.5z"/>
+          </svg>
+          <span class="visually-hidden">Остановить анимацию</span>
+        </button>
       </div>
-      <div class="fact">
-        <span class="fact__num">с {{readings.periodFrom}} по {{readings.periodTo}} число</span>
-        <span class="fact__label">Период передачи показаний приборов учёта</span>
-      </div>
-      <div class="fact">
-        <span class="fact__num">30 дней</span>
-        <span class="fact__label">Срок рассмотрения письменного обращения (59-ФЗ)</span>
-      </div>
-    </div>
+      <dl class="status__list">
+        <div class="status__row">
+          <dt>Аварийная служба</dt>
+          <dd><span class="status__value">{{@contacts.dispatcher}}</span> <span class="status__note">круглосуточно</span></dd>
+        </div>
+        <div class="status__row" data-status-readings>
+          <dt>Приём показаний</dt>
+          <dd><span class="status__dot" aria-hidden="true"></span><span class="status__value" data-value>с {{readings.periodFrom}} по {{readings.periodTo}} число</span> <a class="status__link" href="/pokazaniya.html">Передать</a><span class="status__month" data-status-month aria-hidden="true" hidden><span class="status__window"></span><span class="status__today"></span></span></dd>
+        </div>
+        <div class="status__row" data-status-outages>
+          <dt>Работы на сетях</dt>
+          <dd><span class="status__dot" aria-hidden="true"></span><span class="status__value" data-value>сведения на странице</span> <a class="status__link" href="/otklyucheniya.html">Подробнее</a></dd>
+        </div>
+      </dl>
+    </aside>
   </div>
 </section>
+<script src="/js/hero-twin.js?v={{assets.twin}}" defer></script>
 
 <section class="section">
   <div class="wrap">

@@ -15,11 +15,37 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 const PAGES = path.join(SRC, 'pages');
-const OUT = path.join(ROOT, 'public');
+// Демо-сборка пишет в отдельную папку, чтобы не задеть рабочий public/
+const OUT = process.env.SITE_OUT ? path.resolve(process.env.SITE_OUT) : path.join(ROOT, 'public');
 
 const crypto = require('crypto');
 
 const data = JSON.parse(fs.readFileSync(path.join(SRC, 'data.json'), 'utf8'));
+
+// Демо-сборка (tools/build-demo.js): полоса «демо-версия», запрет индексации
+// и базовый путь для GitHub Pages. Обычная сборка эти переменные не задаёт.
+const DEMO = process.env.SITE_DEMO === '1';
+const BASE = (process.env.SITE_BASE || '').replace(/\/+$/, '');
+// Варианты оформления в демо: ссылки полные, чтобы withBase() их не трогал;
+// скрипт подставляет в них ту же страницу, что открыта сейчас.
+const DEMO_ROOT = 'https://a1exxx.github.io/borisoglebsk-teploseti';
+const DEMO_VARIANT = process.env.SITE_DEMO_VARIANT || '1';
+const DEMO_VARIANTS = [['1', '', 'Вариант 1'], ['2', '/v2', 'Вариант 2'], ['3', '/v3', 'Вариант 3'], ['4', '/v4', 'Вариант 4']];
+const DEMO_SWITCH = DEMO_VARIANTS.map(([id, sub, label]) =>
+  `<a href="${DEMO_ROOT}${sub}/" data-variant-base="/borisoglebsk-teploseti${sub}"${id === DEMO_VARIANT ? ' aria-current="page"' : ''}>${label}</a>`
+).join('');
+const DEMO_BANNER = `<div class="demo-banner" role="note">
+  <div class="wrap">
+    <strong>Демо-версия нового оформления.</strong>
+    <span>Формы здесь не работают. Официальный сайт — <a href="https://borisoglebskteplo.ru/">borisoglebskteplo.ru</a></span>
+    <nav class="demo-banner__switch" aria-label="Варианты оформления">${DEMO_SWITCH}</nav>
+  </div>
+</div>`;
+
+/** Абсолютные ссылки вида /css/… на GitHub Pages ведут мимо папки проекта. */
+function withBase(html) {
+  return BASE ? html.replace(/(\s(?:href|src|action)=")\/(?!\/)/g, `$1${BASE}/`) : html;
+}
 
 /** Короткий хеш файла — подставляется в ссылку как ?v=…
  *  Статика отдаётся с длинным сроком кеширования, поэтому без этого
@@ -36,6 +62,7 @@ function assetHash(relPath) {
 data.assets = {
   css: assetHash(path.join('css', 'style.css')),
   js: assetHash(path.join('js', 'main.js')),
+  twin: assetHash(path.join('js', 'hero-twin.js')),
 };
 const layout = fs.readFileSync(path.join(SRC, 'layout.html'), 'utf8');
 
@@ -158,13 +185,15 @@ for (const file of fs.readdirSync(PAGES).filter((f) => f.endsWith('.html')).sort
     title: meta.title || 'Страница',
     description: meta.description || '',
     canonical,
-    robots: NOINDEX.has(file) ? 'noindex, follow' : 'index, follow',
+    robots: DEMO ? 'noindex, nofollow' : NOINDEX.has(file) ? 'noindex, follow' : 'index, follow',
+    demoAttr: DEMO ? ` data-demo="1"${BASE ? ` data-base="${BASE}"` : ''}` : '',
+    demoBanner: DEMO ? DEMO_BANNER : '',
     ogImage: `${SITE_URL}/img/logo-512.png`,
     crumbs: meta.crumbs === 'no' ? '' : crumbsHtml(meta.crumbs || meta.title),
     content: fill(body),
   });
 
-  fs.writeFileSync(path.join(OUT, file), html, 'utf8');
+  fs.writeFileSync(path.join(OUT, file), withBase(html), 'utf8');
   built.push(`${file} (${Math.round(Buffer.byteLength(html) / 1024)} КБ)`);
   if (!NOINDEX.has(file)) indexable.push(canonPath);
 }
@@ -173,20 +202,28 @@ for (const file of fs.readdirSync(PAGES).filter((f) => f.endsWith('.html')).sort
    разделов не расходился с тем, что реально собрано. */
 fs.writeFileSync(
   path.join(OUT, 'robots.txt'),
-  ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /api/', '', `Sitemap: ${SITE_URL}/sitemap.xml`, ''].join('\n'),
+  (DEMO
+    ? ['User-agent: *', 'Disallow: /', '']
+    : ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /api/', '', `Sitemap: ${SITE_URL}/sitemap.xml`, '']
+  ).join('\n'),
   'utf8'
 );
 
-const today = new Date().toISOString().slice(0, 10);
-const urls = indexable
-  .map((p) => `  <url>\n    <loc>${SITE_URL}${p}</loc>\n    <lastmod>${today}</lastmod>\n  </url>`)
-  .join('\n');
-fs.writeFileSync(
-  path.join(OUT, 'sitemap.xml'),
-  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
-  'utf8'
-);
-built.push(`robots.txt, sitemap.xml (${indexable.length} адресов)`);
+// Демо-копию поисковикам не показываем — карта сайта ей не нужна
+if (!DEMO) {
+  const today = new Date().toISOString().slice(0, 10);
+  const urls = indexable
+    .map((p) => `  <url>\n    <loc>${SITE_URL}${p}</loc>\n    <lastmod>${today}</lastmod>\n  </url>`)
+    .join('\n');
+  fs.writeFileSync(
+    path.join(OUT, 'sitemap.xml'),
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
+    'utf8'
+  );
+  built.push(`robots.txt, sitemap.xml (${indexable.length} адресов)`);
+} else {
+  built.push('robots.txt (демо: индексация запрещена)');
+}
 
 console.log(`Собрано страниц: ${built.length}`);
 built.forEach((b) => console.log('  ' + b));

@@ -9,6 +9,9 @@
 
   var VISION_KEY = 'bgts-vision';
   var root = document.documentElement;
+  // Демо-копия на GitHub Pages открывается не из корня домена, а из
+  // /borisoglebsk-teploseti/ — сборка передаёт этот путь в data-base.
+  var BASE = root.getAttribute('data-base') || '';
 
   function applyVision(state) {
     if (!state || !state.on) {
@@ -181,6 +184,12 @@
 
   document.querySelectorAll('form[data-ajax]').forEach(function (form) {
     form.addEventListener('submit', function (e) {
+      if (root.getAttribute('data-demo') === '1') {
+        e.preventDefault();
+        setNote(form, 'err', 'Это демо-версия сайта',
+          'Формы здесь не отправляются. Показания и обращения принимает официальный сайт borisoglebskteplo.ru.');
+        return;
+      }
       var fields = form.querySelectorAll('.control[required], .control[data-validate], input[type="checkbox"][required]');
       var firstBad = null;
       fields.forEach(function (f) { if (!validateField(f) && !firstBad) firstBad = f; });
@@ -349,12 +358,15 @@
     var limit = Number(list.dataset.limit) || items.length;
     var active = items.filter(function (o) { return o.status !== 'done'; }).slice(0, limit);
 
+    var empty = document.querySelector(list.dataset.emptyTarget || '#outages-empty');
     if (!active.length) {
-      var empty = document.querySelector(list.dataset.emptyTarget || '#outages-empty');
       if (empty) empty.hidden = false;
       list.hidden = true;
       return;
     }
+    // Плашка «Действующих ограничений нет» видна в разметке по умолчанию.
+    // Без этой строки она оставалась под таблицей с текущими работами.
+    if (empty) empty.hidden = true;
     tbody.innerHTML = '';
     active.forEach(function (o) {
       var tr = document.createElement('tr');
@@ -480,15 +492,17 @@
 
   var needsContent = document.querySelector('[data-outages], [data-news], #announcement');
   if (needsContent && window.fetch) {
-    fetch('/api/content', { headers: { Accept: 'application/json' } })
+    fetch(BASE + '/api/content', { headers: { Accept: 'application/json' } })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         renderAnnouncement(data.announcement);
         allOutages = data.outages || [];
         document.querySelectorAll('[data-outages]').forEach(function (el) { renderOutages(el, allOutages); });
         document.querySelectorAll('[data-news]').forEach(function (el) { renderNews(el, data.news || []); });
+        document.dispatchEvent(new CustomEvent('site:outages', { detail: { items: allOutages } }));
       })
       .catch(function () {
+        document.dispatchEvent(new CustomEvent('site:outages', { detail: { error: true } }));
         document.querySelectorAll('[data-outages]').forEach(function (el) {
           var empty = document.querySelector(el.dataset.emptyTarget || '#outages-empty');
           if (empty) { empty.hidden = false; empty.querySelector('p').textContent = 'Не удалось загрузить сведения о работах. Телефон аварийно-диспетчерской службы указан в разделе «Контакты».'; }
@@ -561,9 +575,212 @@
     var here = window.location.pathname.replace(/\/index\.html$/, '/');
     document.querySelectorAll('.nav__link').forEach(function (link) {
       var href = link.getAttribute('href');
-      if (href === here || (href !== '/' && here.indexOf(href) === 0)) {
+      if (href === here || (href !== BASE + '/' && here.indexOf(href) === 0)) {
         link.setAttribute('aria-current', 'page');
       }
     });
   });
+
+  /* ---------- 9a. Переключатель вариантов в демо ---------- */
+
+  document.querySelectorAll('[data-variant-base]').forEach(function (link) {
+    var page = window.location.pathname.slice(BASE.length) || '/';
+    link.href = window.location.origin + link.getAttribute('data-variant-base') + page;
+  });
+
+  /* ---------- 9b. Панель «На сегодня» (вариант 2 первого экрана) ---------- */
+
+  // Только настоящие сведения: время по Москве, окно приёма показаний из
+  // настроек сайта и число объявленных работ из того же источника, что и
+  // таблица отключений. Ничего не выдумываем и не называем «онлайн-данными».
+  var statusPanel = document.querySelector('[data-status]');
+  if (statusPanel) {
+    var MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    var moscowNow = function () {
+      var parts = {};
+      try {
+        new Intl.DateTimeFormat('ru-RU', {
+          timeZone: 'Europe/Moscow', year: 'numeric', month: 'numeric', day: 'numeric',
+          hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+        }).formatToParts(new Date()).forEach(function (p) { parts[p.type] = p.value; });
+      } catch (err) {
+        var local = new Date();
+        parts = { year: local.getFullYear(), month: local.getMonth() + 1, day: local.getDate(), hour: local.getHours(), minute: local.getMinutes() };
+      }
+      return {
+        y: Number(parts.year), m: Number(parts.month), d: Number(parts.day),
+        time: ('0' + Number(parts.hour)).slice(-2) + ':' + ('0' + Number(parts.minute)).slice(-2),
+      };
+    };
+    var setRow = function (row, text, tone) {
+      if (!row) return;
+      var value = row.querySelector('[data-value]');
+      var dot = row.querySelector('.status__dot');
+      if (value) value.textContent = text;
+      if (dot) dot.setAttribute('data-tone', tone);
+    };
+    var plural = function (n, one, few, many) {
+      var n10 = n % 10, n100 = n % 100;
+      if (n10 === 1 && n100 !== 11) return one;
+      if (n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14)) return few;
+      return many;
+    };
+    var clock = statusPanel.querySelector('[data-status-clock]');
+    var from = Number(statusPanel.getAttribute('data-from'));
+    var to = Number(statusPanel.getAttribute('data-to'));
+    // Полоска месяца: окно приёма показаний и отметка «сегодня» (варианты 3–4)
+    var strip = statusPanel.querySelector('[data-status-month]');
+
+    var tick = function () {
+      var now = moscowNow();
+      if (clock) clock.textContent = now.d + ' ' + MONTHS[now.m - 1] + ', ' + now.time + ' МСК';
+      if (strip && from && to && now.y) {
+        strip.style.setProperty('--days', String(new Date(now.y, now.m, 0).getDate()));
+        strip.style.setProperty('--from', String(from));
+        strip.style.setProperty('--to', String(to));
+        strip.style.setProperty('--today', String(now.d));
+        strip.hidden = false;
+      }
+      if (from && to) {
+        var row = statusPanel.querySelector('[data-status-readings]');
+        if (now.d >= from && now.d <= to) {
+          setRow(row, 'идёт до ' + to + ' ' + MONTHS[now.m - 1], 'ok');
+        } else {
+          var month = now.d < from ? now.m - 1 : now.m % 12;
+          setRow(row, 'с ' + from + ' по ' + to + ' ' + MONTHS[month], 'idle');
+        }
+      }
+    };
+    tick();
+    setInterval(tick, 20000);
+
+    document.addEventListener('site:outages', function (e) {
+      var row = statusPanel.querySelector('[data-status-outages]');
+      if (e.detail.error) { setRow(row, 'нет связи с сервером', 'idle'); return; }
+      var active = (e.detail.items || []).filter(function (o) { return o.status !== 'done'; }).length;
+      if (!active) setRow(row, 'штатный режим', 'ok');
+      else setRow(row, 'объявлено: ' + active + ' ' + plural(active, 'работа', 'работы', 'работ'), 'warn');
+    });
+  }
+
+  /* ---------- 9c. Подсветка карточки за курсором (вариант 2) ---------- */
+
+  if (window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches && document.querySelector('.svc')) {
+    var spotEvent = null;
+    var spotFrame = 0;
+    document.addEventListener('pointermove', function (e) {
+      spotEvent = e;
+      if (spotFrame) return;
+      spotFrame = requestAnimationFrame(function () {
+        spotFrame = 0;
+        var card = spotEvent.target && spotEvent.target.closest ? spotEvent.target.closest('.svc') : null;
+        if (!card) return;
+        var r = card.getBoundingClientRect();
+        card.style.setProperty('--mx', (spotEvent.clientX - r.left) + 'px');
+        card.style.setProperty('--my', (spotEvent.clientY - r.top) + 'px');
+      });
+    }, { passive: true });
+  }
+
+  /* ---------- 10. Движение ---------- */
+
+  // Появление блоков при прокрутке, пауза сцены главного экрана, когда её не
+  // видно, и один сигнал блока аварийной службы. Только если человек не просил
+  // уменьшить движение и не включил версию для слабовидящих.
+  (function () {
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !('IntersectionObserver' in window)) return;
+
+    var scene = document.querySelector('[data-scene]') || document.querySelector('.hero__scene');
+    var stopBtn = document.querySelector('[data-scene-toggle]');
+    if (scene && stopBtn) {
+      var STOP_KEY = 'bgts-scene-stopped';
+      var setStopped = function (stopped) {
+        if (stopped) scene.setAttribute('data-stopped', ''); else scene.removeAttribute('data-stopped');
+        stopBtn.setAttribute('aria-pressed', String(stopped));
+        stopBtn.title = stopped ? 'Запустить анимацию' : 'Остановить анимацию';
+      };
+      var wasStopped = false;
+      try { wasStopped = localStorage.getItem(STOP_KEY) === '1'; } catch (e) { /* приватный режим */ }
+      setStopped(wasStopped);
+      stopBtn.hidden = false;
+      stopBtn.addEventListener('click', function () {
+        var next = stopBtn.getAttribute('aria-pressed') !== 'true';
+        setStopped(next);
+        try { localStorage.setItem(STOP_KEY, next ? '1' : '0'); } catch (e) { /* приватный режим */ }
+      });
+    }
+    if (scene) {
+      new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) entry.target.removeAttribute('data-paused');
+          else entry.target.setAttribute('data-paused', '');
+        });
+      }).observe(scene);
+    }
+
+    if (root.getAttribute('data-vision') === 'on') return;
+
+    var SELECTOR = '.sec-head, .svc, .card, .panel, .aside-block, .emergency, .steps > li, .acc, .doclist > li, .tablewrap, .contact-card';
+    var fold = window.innerHeight * 0.92;
+    var perParent = [];
+
+    function indexIn(parent) {
+      for (var k = 0; k < perParent.length; k++) {
+        if (perParent[k].parent === parent) return perParent[k].count++;
+      }
+      perParent.push({ parent: parent, count: 1 });
+      return 0;
+    }
+
+    function reveal(el) {
+      observer.unobserve(el);
+      el.classList.add('is-in');
+      var i = Number(el.style.getPropertyValue('--i')) || 0;
+      if (el.classList.contains('emergency')) {
+        setTimeout(function () { el.classList.add('is-attn'); }, 450);
+        el.addEventListener('animationend', function done(ev) {
+          if (ev.animationName !== 'attn-ring') return;
+          el.classList.remove('is-attn');
+          el.removeEventListener('animationend', done);
+        });
+      }
+      // Снимаем служебные классы, чтобы вернуть обычные переходы наведения
+      setTimeout(function () {
+        el.classList.remove('reveal', 'is-in');
+        el.style.removeProperty('--i');
+      }, 1150 + i * 70);
+    }
+
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) reveal(entry.target);
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+
+    // Страховка: если наблюдатель по какой-то причине не сообщил о блоке,
+    // раз в 2 секунды проверяем, не остался ли скрытым блок прямо на экране.
+    var pending = [];
+    function sweep() {
+      var h = window.innerHeight;
+      pending = pending.filter(function (el) {
+        if (!el.classList.contains('reveal') || el.classList.contains('is-in')) return false;
+        var r = el.getBoundingClientRect();
+        if (r.top < h && r.bottom > 0) { reveal(el); return false; }
+        return true;
+      });
+      if (pending.length) setTimeout(sweep, 2000);
+    }
+
+    document.querySelectorAll(SELECTOR).forEach(function (el) {
+      if (el.closest('[hidden]')) return;
+      if (el.parentElement && el.parentElement.closest(SELECTOR)) return; // вложенные появляются вместе с родителем
+      if (el.getBoundingClientRect().top <= fold) return; // первый экран не прячем
+      el.style.setProperty('--i', String(Math.min(indexIn(el.parentElement), 5)));
+      el.classList.add('reveal');
+      observer.observe(el);
+      pending.push(el);
+    });
+    if (pending.length) setTimeout(sweep, 2000);
+  })();
 })();
