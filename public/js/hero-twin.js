@@ -187,6 +187,10 @@
       powerPreference: 'low-power', preserveDrawingBuffer: false,
     });
     if (!gl || !gl.getExtension('OES_standard_derivatives')) return;
+    // Видеокарты нет и WebGL рисует процессор — показываем один неподвижный кадр
+    var dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    var gpu = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
+    if (/swiftshader|llvmpipe|software|basic render/i.test(gpu)) still = true;
 
     var KX = Math.cos(city.lat0 * Math.PI / 180) * 111320;
     var KY = 110540;
