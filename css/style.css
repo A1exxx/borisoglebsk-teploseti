@@ -916,3 +916,5 @@ html[data-vision="on"]::view-transition-new(root) { animation: none; }
 .demo-banner__switch a { padding: 3px 12px; border: 1px solid #d9b870; border-radius: 999px; text-decoration: none; }
 .demo-banner__switch a:hover { background: #fdebc2; }
 .demo-banner__switch a[aria-current="page"] { background: #5c3d00; border-color: #5c3d00; color: #fff6e0; }
+.demo-banner__switch { flex-wrap: wrap; }
+@media (max-width: 559px) { .demo-banner__switch { margin-left: 0; } .demo-banner__switch a { padding: 3px 10px; } }
