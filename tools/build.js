@@ -30,7 +30,7 @@ const BASE = (process.env.SITE_BASE || '').replace(/\/+$/, '');
 // скрипт подставляет в них ту же страницу, что открыта сейчас.
 const DEMO_ROOT = 'https://a1exxx.github.io/borisoglebsk-teploseti';
 const DEMO_VARIANT = process.env.SITE_DEMO_VARIANT || '1';
-const DEMO_VARIANTS = [['1', '', 'Вариант 1'], ['2', '/v2', 'Вариант 2']];
+const DEMO_VARIANTS = [['1', '', 'Вариант 1'], ['2', '/v2', 'Вариант 2'], ['3', '/v3', 'Вариант 3'], ['4', '/v4', 'Вариант 4']];
 const DEMO_SWITCH = DEMO_VARIANTS.map(([id, sub, label]) =>
   `<a href="${DEMO_ROOT}${sub}/" data-variant-base="/borisoglebsk-teploseti${sub}"${id === DEMO_VARIANT ? ' aria-current="page"' : ''}>${label}</a>`
 ).join('');
