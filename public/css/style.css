@@ -1326,8 +1326,8 @@ html[data-vision="on"] .svc__ico { background: var(--c-surface); color: var(--c-
 @media (min-width: 1040px) { .hero--twin ~ .section .services { display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--s7); } }
 .hero--twin ~ .section .svc {
   counter-increment: svc; position: relative;
-  display: grid; grid-template-columns: 3rem minmax(0, 1fr) auto; column-gap: var(--s4); align-items: start;
-  padding: var(--s5) var(--s3) var(--s5) 0; background: none; border: 0; border-bottom: 1px solid var(--c-border);
+  display: grid; grid-template-columns: 3rem minmax(0, 1fr); column-gap: var(--s4); align-items: start;
+  padding: var(--s5) 76px var(--s5) 0; background: none; border: 0; border-bottom: 1px solid var(--c-border);
   border-radius: 0; box-shadow: none; transform: none; grid-row: auto;
   transition: background-color .2s var(--ease);
 }
@@ -1340,14 +1340,14 @@ html[data-vision="on"] .svc__ico { background: var(--c-surface); color: var(--c-
 .hero--twin ~ .section .svc h3, .hero--twin ~ .section .svc p, .hero--twin ~ .section .svc__cta { grid-column: 2; }
 .hero--twin ~ .section .svc h3 { margin-bottom: 6px; }
 .hero--twin ~ .section .svc__ico {
-  grid-column: 3; grid-row: 1 / span 3; align-self: center; margin: 0;
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%); margin: 0;
   width: 44px; height: 44px; background: none; color: var(--navy-600); border: 1px solid var(--c-border); border-radius: 50%;
 }
 .hero--twin ~ .section .svc--accent .svc__ico { color: var(--heat-700); border-color: rgba(154, 52, 18, .35); }
 .hero--twin ~ .section .svc:hover { background: linear-gradient(90deg, rgba(47, 150, 214, .07), transparent 70%); transform: none; box-shadow: none; }
-.hero--twin ~ .section .svc:hover .svc__ico { transform: none; border-color: var(--navy-600); }
+.hero--twin ~ .section .svc:hover .svc__ico { transform: translateY(-50%); border-color: var(--navy-600); }
 @media (max-width: 639px) {
-  .hero--twin ~ .section .svc { grid-template-columns: 2.4rem minmax(0, 1fr); }
+  .hero--twin ~ .section .svc { grid-template-columns: 2.4rem minmax(0, 1fr); padding-right: var(--s2); }
   .hero--twin ~ .section .svc__ico { display: none; }
 }
 html[data-vision="on"] .hero--twin ~ .section .svc::before { color: var(--c-text); font-family: var(--font-ui); }
