@@ -810,8 +810,15 @@
     }
     // Для неподвижного кадра — три уже прогретых квартала
     function settle(t) {
-      spots = [0.17, 0.53, 0.81].map(function (k, i) {
-        var p = spotPool[Math.floor(k * (spotPool.length - 1))];
+      var chosen = [];
+      var n = spotPool.length;
+      for (var k = 0; k < n && chosen.length < 3; k++) {
+        var p = spotPool[(Math.floor(n * 0.17) + k * 7919) % n];
+        if (!onScreen(p)) continue;
+        if (chosen.some(function (c) { return Math.abs(c[0] - p[0]) + Math.abs(c[1] - p[1]) < 520; })) continue;
+        chosen.push(p);
+      }
+      spots = chosen.map(function (p, i) {
         return { x: p[0], z: p[1], t0: t - 3 - i * 0.7, R: lite ? 380 : 520, life: 1e6 };
       });
       nextSpawn = t + 1.5;
@@ -952,11 +959,11 @@
     function sync() { if (blocked()) stop(); else start(); }
 
     // Неподвижный кадр и остановленная заранее сцена — город уже собран,
-    // три квартала прогреты
-    if (still) settle(30);
-    else if (stoppedByUser()) { t0 = performance.now() - 30000; settle(30); }
-
+    // три квартала прогреты там, где их видно
+    var settled = still || stoppedByUser();
+    if (settled && !still) t0 = performance.now() - 30000;
     resize();
+    if (settled) { camera(30); settle(30); }
     render(performance.now());
     hero.classList.add('is-live');
     sync();
