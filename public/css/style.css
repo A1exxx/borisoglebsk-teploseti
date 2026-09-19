@@ -1118,3 +1118,202 @@ html[data-vision="on"] td.num { font-family: var(--font-ui); letter-spacing: nor
 html[data-vision="on"] .tablewrap[data-outages] caption::before { display: none; }
 .footer { background-image: radial-gradient(rgba(126, 203, 255, .07) 1px, transparent 1.6px); background-size: 26px 26px; }
 html[data-vision="on"] .footer { background-image: none; }
+
+/* ---------- 33. Вариант 4: «Цифровой двойник» ---------- */
+/* Тёмный первый экран: объёмная модель Борисоглебска по данным OpenStreetMap
+   на WebGL (public/js/hero-twin.js, данные public/data/city*.bin). От
+   настоящих дымовых труб по улицам расходится тепловая волна. Остальной
+   сайт светлый: формы и документы на светлом фоне читать легче.
+   Шрифты Geist и Geist Mono — свободная лицензия OFL 1.1, лежат на сайте. */
+@font-face {
+  font-family: "Geist"; font-style: normal; font-display: swap; font-weight: 100 900;
+  src: url("../fonts/geist-cyrillic-wght-normal.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: "Geist"; font-style: normal; font-display: swap; font-weight: 100 900;
+  src: url("../fonts/geist-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Geist Mono"; font-style: normal; font-display: swap; font-weight: 100 900;
+  src: url("../fonts/geist-mono-cyrillic-wght-normal.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: "Geist Mono"; font-style: normal; font-display: swap; font-weight: 100 900;
+  src: url("../fonts/geist-mono-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+:root {
+  --font-ui: "Geist", "Segoe UI", system-ui, -apple-system, "Roboto", "Helvetica Neue", Arial, sans-serif;
+  --font-num: var(--font-ui);
+  --font-mono: "Geist Mono", ui-monospace, "Cascadia Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --twin-bg: #07121d;
+  --twin-cyan: #7ecbff;
+  --twin-warm: #ff9a4d;
+  --twin-line: rgba(126, 203, 255, .18);
+}
+/* Версия для слабовидящих — привычный системный шрифт, без моноширинных подписей */
+html[data-vision="on"] { --font-ui: Arial, "Segoe UI", system-ui, sans-serif; --font-mono: var(--font-ui); }
+
+h1, h2, h3 { font-weight: 640; }
+h1 { letter-spacing: -.028em; }
+h2 { letter-spacing: -.02em; }
+html[data-vision="on"] h1, html[data-vision="on"] h2, html[data-vision="on"] h3 { font-weight: 700; letter-spacing: normal; }
+
+/* 33.1 Первый экран: город на холсте; без WebGL — тёмное поле с сеткой */
+.hero--twin {
+  background-color: var(--twin-bg); color: #fff; isolation: isolate;
+  background-image:
+    radial-gradient(90% 80% at 72% 70%, rgba(40, 90, 130, .35), transparent 70%),
+    linear-gradient(rgba(126, 203, 255, .06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(126, 203, 255, .06) 1px, transparent 1px);
+  background-size: auto, 64px 64px, 64px 64px;
+}
+.hero--twin .hero__canvas { opacity: 0; transition: opacity .7s var(--ease-out); }
+.hero--twin.is-live .hero__canvas { opacity: 1; }
+/* Под текстом — тень, чтобы белые буквы не спорили с домами */
+.hero__shade {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(7, 18, 29, .92) 0%, rgba(7, 18, 29, .74) 42%, rgba(7, 18, 29, .1) 70%, rgba(7, 18, 29, .78) 100%);
+}
+@media (min-width: 980px) {
+  .hero__shade {
+    background:
+      linear-gradient(90deg, rgba(7, 18, 29, .95) 0%, rgba(7, 18, 29, .88) 36%, rgba(7, 18, 29, .45) 54%, rgba(7, 18, 29, 0) 72%),
+      linear-gradient(0deg, rgba(7, 18, 29, .7) 0%, transparent 22%);
+  }
+}
+html[data-vision="on"] .hero--twin { background: var(--c-surface); color: var(--c-text); }
+
+.hero--twin .hero__in { padding-block: clamp(40px, 7vh, 72px) 112px; }
+@media (min-width: 980px) {
+  .hero--twin .hero__in {
+    grid-template-columns: minmax(0, 1.2fr) minmax(340px, .8fr); gap: clamp(40px, 6vw, 96px);
+    min-height: clamp(560px, 74svh, 760px); padding-block: 72px 120px; align-items: center;
+  }
+}
+.hero--twin h1 {
+  color: #fff; font-size: clamp(2.05rem, 1rem + 3.5vw, 3.6rem);
+  line-height: 1.03; letter-spacing: -.035em; font-weight: 620; max-width: 14.5ch;
+  margin-bottom: var(--s5);
+}
+.hero--twin .hero__lead { color: #b9cde0; font-size: clamp(1.05rem, .98rem + .3vw, 1.2rem); line-height: 1.55; max-width: 44ch; margin-bottom: var(--s6); }
+html[data-vision="on"] .hero--twin h1 { font-size: 2rem; max-width: none; color: var(--c-text); }
+html[data-vision="on"] .hero--twin .hero__lead { color: var(--c-text); }
+
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-vision="on"]) .hero--twin .hero__in > div:first-child > *,
+  html:not([data-vision="on"]) .hero--twin .hero__in > .status {
+    animation: twin-rise .9s var(--ease-out) var(--rise-d, 0s) both;
+  }
+}
+@keyframes twin-rise { from { opacity: 0; transform: translateY(16px); filter: blur(6px); } }
+
+/* Рамка «видоискателя» по углам первого экрана */
+@media (min-width: 980px) {
+  .hero--twin::after {
+    content: ""; position: absolute; inset: 20px; pointer-events: none; z-index: 1;
+    --c: rgba(126, 203, 255, .45);
+    background:
+      linear-gradient(var(--c), var(--c)) left top / 18px 1px no-repeat,
+      linear-gradient(var(--c), var(--c)) left top / 1px 18px no-repeat,
+      linear-gradient(var(--c), var(--c)) right top / 18px 1px no-repeat,
+      linear-gradient(var(--c), var(--c)) right top / 1px 18px no-repeat,
+      linear-gradient(var(--c), var(--c)) left bottom / 18px 1px no-repeat,
+      linear-gradient(var(--c), var(--c)) left bottom / 1px 18px no-repeat,
+      linear-gradient(var(--c), var(--c)) right bottom / 18px 1px no-repeat,
+      linear-gradient(var(--c), var(--c)) right bottom / 1px 18px no-repeat;
+  }
+  html[data-vision="on"] .hero--twin::after { display: none; }
+}
+
+/* Подписи рек: точка и название, двигаются вместе с моделью */
+.hero__labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.twin-label {
+  position: absolute; left: 0; top: 0; margin: -9px 0 0 -4px;
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 500 .72rem/1 var(--font-mono); letter-spacing: .04em; color: #9fdcf0; white-space: nowrap;
+  opacity: 0; transition: opacity .6s var(--ease-out);
+  text-shadow: 0 1px 8px rgba(7, 18, 29, .9);
+}
+.twin-label::before { content: ""; width: 7px; height: 7px; border-radius: 50%; border: 1px solid currentColor; background: rgba(7, 18, 29, .6); }
+
+/* Строка приборов внизу: координаты под курсором, легенда, ссылка на карту */
+.hero__hud {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--s5);
+  padding: 12px max(var(--s4), calc((100% - var(--wrap)) / 2 + var(--s4)));
+  font: 500 .72rem/1.4 var(--font-mono); letter-spacing: .02em; color: #8fb2cc;
+  border-top: 1px solid rgba(126, 203, 255, .1);
+  background: linear-gradient(0deg, rgba(7, 18, 29, .85), rgba(7, 18, 29, .45));
+}
+.hud__coord { font-variant-numeric: tabular-nums; min-width: 30ch; }
+.hud__tag { color: #cfe6f5; text-transform: uppercase; letter-spacing: .12em; }
+.hud__legend { display: none; align-items: center; gap: 10px; }
+@media (min-width: 980px) { .hud__legend { display: inline-flex; } }
+.hud__bar { width: 64px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, #2c6f9e, var(--twin-cyan) 30%, var(--twin-warm) 72%, #ffe0b8); }
+.hud__osm { margin-left: auto; color: #8fb2cc; text-underline-offset: 3px; }
+.hud__osm:hover { color: #fff; }
+@media (max-width: 640px) { .hud__coord { min-width: 0; } .hud__tag { display: none; } }
+
+/* 33.2 Кнопки: на тёмном — светящийся контур, нажатие пружинит */
+.btn { border-radius: 10px; transition: background-color .16s var(--ease), border-color .16s var(--ease), box-shadow .2s var(--ease), transform .2s var(--ease-out); }
+.btn:active { transform: scale(.97); transition-duration: .08s; }
+.btn--primary { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), 0 10px 28px -12px rgba(255, 122, 40, .7); }
+.hero--twin .btn--ghost { background: rgba(255, 255, 255, .04); color: #fff; border-color: rgba(126, 203, 255, .4); }
+.hero--twin .btn--ghost:hover { background: rgba(126, 203, 255, .12); border-color: var(--twin-cyan); }
+html[data-vision="on"] .hero--twin .btn--ghost { background: var(--c-surface); color: var(--c-text); border-color: var(--c-border); }
+html[data-vision="on"] .btn { border-radius: var(--radius); box-shadow: none; transform: none; }
+
+/* 33.3 Панель «На сегодня» — тёмное стекло */
+.hero--twin .status { background: rgba(8, 20, 33, .72); border-color: rgba(126, 203, 255, .2); border-radius: 16px; }
+@media (hover: hover) and (pointer: fine) {
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .hero--twin .status {
+      background: rgba(8, 20, 33, .5);
+      -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3);
+    }
+  }
+}
+.status__month {
+  position: relative; flex: 0 0 100%; height: 5px; margin: 10px 0 4px;
+  border-radius: 3px; background: rgba(126, 203, 255, .14);
+}
+.status__month[hidden] { display: none; }
+.status__window {
+  position: absolute; top: 0; bottom: 0; border-radius: inherit;
+  left: calc((var(--from, 20) - 1) / var(--days, 30) * 100%);
+  width: calc((var(--to, 25) - var(--from, 20) + 1) / var(--days, 30) * 100%);
+  background: linear-gradient(90deg, var(--twin-warm), #ffd1a0);
+  box-shadow: 0 0 10px rgba(255, 154, 77, .6);
+}
+.status__today {
+  position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 1px;
+  left: calc((var(--today, 1) - .5) / var(--days, 30) * 100%);
+  background: #fff;
+}
+html[data-vision="on"] .status__month { display: none; }
+
+/* 33.4 Разделы главной пронумерованы, как в техническом документе */
+main { counter-reset: twin-sec; }
+.hero--twin ~ .section { counter-increment: twin-sec; }
+.hero--twin ~ .section .sec-head h2::before {
+  content: counter(twin-sec, decimal-leading-zero);
+  display: block; margin-bottom: 6px;
+  font: 500 .78rem/1 var(--font-mono); letter-spacing: .14em; color: var(--heat-600);
+}
+html[data-vision="on"] .hero--twin ~ .section .sec-head h2::before { display: none; }
+
+/* Плитки: чёткие края, при наведении — уголки рамки */
+.svc { border-radius: 12px; box-shadow: none; }
+.svc:hover { box-shadow: 0 22px 44px -30px rgba(7, 18, 29, .55); transform: translateY(-2px); }
+.svc__ico { border-radius: 10px; background: #0f2436; color: var(--twin-cyan); }
+.svc--accent .svc__ico { background: var(--heat-700); color: #fff; }
+@media (hover: hover) and (pointer: fine) {
+  .svc::before { background: radial-gradient(240px circle at var(--mx, 50%) var(--my, 50%), rgba(47, 150, 214, .9), transparent 70%); }
+}
+html[data-vision="on"] .svc__ico { background: var(--c-surface); color: var(--c-text); }
+
+.scroll-progress { background: linear-gradient(90deg, var(--twin-cyan), var(--twin-warm)); height: 2px; }
