@@ -76,7 +76,7 @@
 
     <div class="masthead__contacts">
       <span class="masthead__label">Аварийно-диспетчерская служба</span>
-      <span class="masthead__phone"><span class="todo" title="Заполнить в src/data.json">уточняется</span></span>
+      <span class="masthead__phone"><span class="todo" data-contact="dispatcher" title="Заполнить в панели управления">уточняется</span></span>
     </div>
 
     <button type="button" class="navtoggle" data-nav-toggle aria-expanded="false" aria-controls="mainnav">
@@ -134,7 +134,7 @@
     <div class="emergency" style="margin-bottom:32px">
       <h2 class="h3-size">Аварийно-диспетчерская служба</h2>
       <p style="margin-bottom:6px">Отсутствие отопления, прорыв, утечка, отсутствие горячей воды</p>
-      <span class="emergency__phone"><span class="todo" title="Заполнить в src/data.json">уточняется</span></span>
+      <span class="emergency__phone"><span class="todo" data-contact="dispatcher" title="Заполнить в панели управления">уточняется</span></span>
       <p style="margin-top:8px">Круглосуточно, включая выходные и праздничные дни</p>
     </div>
 
@@ -146,8 +146,8 @@
           <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-phone"></use></svg></span>
           <div class="contact-card__body">
             <span class="contact-card__label">Приёмная</span>
-            <span class="contact-card__value"><span class="todo" title="Заполнить в src/data.json">уточняется</span></span>
-            <span class="contact-card__note"><span class="todo" title="Заполнить в src/data.json">Понедельник — пятница, уточняется — уточняется, перерыв уточняется — уточняется</span></span>
+            <span class="contact-card__value"><span class="todo" data-contact="reception" title="Заполнить в панели управления">уточняется</span></span>
+            <span class="contact-card__note"><span class="todo" data-contact-text="hours" title="Заполнить в панели управления">Понедельник — пятница, уточняется — уточняется, перерыв уточняется — уточняется</span></span>
           </div>
         </div>
 
@@ -155,7 +155,7 @@
           <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-users"></use></svg></span>
           <div class="contact-card__body">
             <span class="contact-card__label">Абонентский отдел</span>
-            <span class="contact-card__value"><span class="todo" title="Заполнить в src/data.json">уточняется</span></span>
+            <span class="contact-card__value"><span class="todo" data-contact="subscribers" title="Заполнить в панели управления">уточняется</span></span>
             <span class="contact-card__note">Показания приборов учёта, договоры, начисления, задолженность</span>
           </div>
         </div>
@@ -164,7 +164,7 @@
           <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-ruble"></use></svg></span>
           <div class="contact-card__body">
             <span class="contact-card__label">Бухгалтерия</span>
-            <span class="contact-card__value"><span class="todo" title="Заполнить в src/data.json">уточняется</span></span>
+            <span class="contact-card__value"><span class="todo" data-contact="accounting" title="Заполнить в панели управления">уточняется</span></span>
             <span class="contact-card__note">Сверка расчётов, платёжные документы. <a href="/predpriyatie.html#rekvizity">Реквизиты для оплаты</a></span>
           </div>
         </div>
@@ -173,7 +173,7 @@
           <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-mail"></use></svg></span>
           <div class="contact-card__body">
             <span class="contact-card__label">Электронная почта</span>
-            <span class="contact-card__value"><a href="mailto:borisoglebskteplo@govvrn.ru">borisoglebskteplo@govvrn.ru</a></span>
+            <span class="contact-card__value"><a href="mailto:borisoglebskteplo@govvrn.ru" data-contact="email">borisoglebskteplo@govvrn.ru</a></span>
             <span class="contact-card__note">Обращения, документы по договорам, показания приборов учёта</span>
           </div>
         </div>
@@ -194,7 +194,7 @@
           <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-clock"></use></svg></span>
           <div class="contact-card__body">
             <span class="contact-card__label">Режим работы</span>
-            <span class="contact-card__value" style="font-size:1.05rem"><span class="todo" title="Заполнить в src/data.json">Понедельник — пятница, уточняется — уточняется, перерыв уточняется — уточняется</span></span>
+            <span class="contact-card__value" style="font-size:1.05rem"><span class="todo" data-contact-text="hours" title="Заполнить в панели управления">Понедельник — пятница, уточняется — уточняется, перерыв уточняется — уточняется</span></span>
             <span class="contact-card__note">Суббота, воскресенье — выходные дни</span>
           </div>
         </div>
@@ -203,7 +203,7 @@
           <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-calendar"></use></svg></span>
           <div class="contact-card__body">
             <span class="contact-card__label">Личный приём граждан</span>
-            <span class="contact-card__value" style="font-size:1.05rem"><span class="todo" title="Заполнить в src/data.json">уточняется</span></span>
+            <span class="contact-card__value" style="font-size:1.05rem"><span class="todo" data-contact-text="receptionDays" title="Заполнить в панели управления">уточняется</span></span>
             <span class="contact-card__note">Ведёт директор А. А. Егорова. Предварительная запись по телефону приёмной</span>
           </div>
         </div>
@@ -237,7 +237,7 @@
         <tbody>
           <tr>
             <td data-th="Вопрос">Нет отопления, нет горячей воды, прорыв, парение</td>
-            <td data-th="Куда">Аварийно-диспетчерская служба, <span class="todo" title="Заполнить в src/data.json">уточняется</span></td>
+            <td data-th="Куда">Аварийно-диспетчерская служба, <span class="todo" data-contact="dispatcher" title="Заполнить в панели управления">уточняется</span></td>
             <td data-th="Как быстро">Немедленно, круглосуточно</td>
           </tr>
           <tr>
@@ -252,7 +252,7 @@
           </tr>
           <tr>
             <td data-th="Вопрос">Начисления, перерасчёт, задолженность</td>
-            <td data-th="Куда">Абонентский отдел, <span class="todo" title="Заполнить в src/data.json">уточняется</span></td>
+            <td data-th="Куда">Абонентский отдел, <span class="todo" data-contact="subscribers" title="Заполнить в панели управления">уточняется</span></td>
             <td data-th="Как быстро">В день обращения</td>
           </tr>
           <tr>
@@ -262,7 +262,7 @@
           </tr>
           <tr>
             <td data-th="Вопрос">Сверка расчётов для организаций</td>
-            <td data-th="Куда">Бухгалтерия, <span class="todo" title="Заполнить в src/data.json">уточняется</span></td>
+            <td data-th="Куда">Бухгалтерия, <span class="todo" data-contact="accounting" title="Заполнить в панели управления">уточняется</span></td>
             <td data-th="Как быстро">До 5 рабочих дней</td>
           </tr>
         </tbody>
@@ -314,9 +314,9 @@
 
     <div>
       <h2>Аварийная служба</h2>
-      <p><strong style="font-size:1.2rem;color:#fff"><span class="todo" title="Заполнить в src/data.json">уточняется</span></strong><br>Круглосуточно, без выходных</p>
+      <p><strong style="font-size:1.2rem;color:#fff"><span class="todo" data-contact="dispatcher" title="Заполнить в панели управления">уточняется</span></strong><br>Круглосуточно, без выходных</p>
       <h2 style="margin-top:24px">Приёмная</h2>
-      <p><span class="todo" title="Заполнить в src/data.json">уточняется</span><br><span class="todo" title="Заполнить в src/data.json">Пн — Пт, уточняется — уточняется</span></p>
+      <p><span class="todo" data-contact="reception" title="Заполнить в панели управления">уточняется</span><br><span class="todo" data-contact-text="hoursShort" title="Заполнить в панели управления">Пн — Пт, уточняется — уточняется</span></p>
     </div>
   </div>
 

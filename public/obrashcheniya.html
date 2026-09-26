@@ -76,7 +76,7 @@
 
     <div class="masthead__contacts">
       <span class="masthead__label">Аварийно-диспетчерская служба</span>
-      <span class="masthead__phone"><span class="todo" title="Заполнить в src/data.json">уточняется</span></span>
+      <span class="masthead__phone"><span class="todo" data-contact="dispatcher" title="Заполнить в панели управления">уточняется</span></span>
     </div>
 
     <button type="button" class="navtoggle" data-nav-toggle aria-expanded="false" aria-controls="mainnav">
@@ -137,7 +137,7 @@
           <svg class="ico ico--sm" aria-hidden="true" style="vertical-align:-4px"><use href="/img/icons.svg#i-alert"></use></svg>
           Отсутствие отопления или авария — не через эту форму
         </h2>
-        <p class="mb-0">Обращение рассматривается до 30 дней. Если в доме холодно, прорвало трубу или отключили горячую воду — звоните в аварийно-диспетчерскую службу: <strong><span class="todo" title="Заполнить в src/data.json">уточняется</span></strong>, круглосуточно.</p>
+        <p class="mb-0">Обращение рассматривается до 30 дней. Если в доме холодно, прорвало трубу или отключили горячую воду — звоните в аварийно-диспетчерскую службу: <strong><span class="todo" data-contact="dispatcher" title="Заполнить в панели управления">уточняется</span></strong>, круглосуточно.</p>
       </div>
 
       <div class="formnote" data-show="false"></div>
@@ -318,8 +318,8 @@
           <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-calendar"></use></svg></span>
           <div class="contact-card__body">
             <span class="contact-card__label">Приём руководителя</span>
-            <span class="contact-card__value" style="font-size:1.05rem"><span class="todo" title="Заполнить в src/data.json">уточняется</span></span>
-            <span class="contact-card__note">г. Борисоглебск, ул. Матросовская, зд. 117. Предварительная запись по телефону <span class="todo" title="Заполнить в src/data.json">уточняется</span></span>
+            <span class="contact-card__value" style="font-size:1.05rem"><span class="todo" data-contact-text="receptionDays" title="Заполнить в панели управления">уточняется</span></span>
+            <span class="contact-card__note">г. Борисоглебск, ул. Матросовская, зд. 117. Предварительная запись по телефону <span class="todo" data-contact="reception" title="Заполнить в панели управления">уточняется</span></span>
           </div>
         </div>
       </div>
@@ -370,9 +370,9 @@
 
     <div>
       <h2>Аварийная служба</h2>
-      <p><strong style="font-size:1.2rem;color:#fff"><span class="todo" title="Заполнить в src/data.json">уточняется</span></strong><br>Круглосуточно, без выходных</p>
+      <p><strong style="font-size:1.2rem;color:#fff"><span class="todo" data-contact="dispatcher" title="Заполнить в панели управления">уточняется</span></strong><br>Круглосуточно, без выходных</p>
       <h2 style="margin-top:24px">Приёмная</h2>
-      <p><span class="todo" title="Заполнить в src/data.json">уточняется</span><br><span class="todo" title="Заполнить в src/data.json">Пн — Пт, уточняется — уточняется</span></p>
+      <p><span class="todo" data-contact="reception" title="Заполнить в панели управления">уточняется</span><br><span class="todo" data-contact-text="hoursShort" title="Заполнить в панели управления">Пн — Пт, уточняется — уточняется</span></p>
     </div>
   </div>
 

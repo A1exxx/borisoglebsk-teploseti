@@ -73,32 +73,43 @@ function pick(obj, dotted) {
 
 const missing = new Set();
 
+/** Контакты помечаем в разметке: сервер подставляет в них то, что вписали
+ *  в панели управления, без пересборки сайта (см. withContacts в server.js). */
+function contactMark(keyPath) {
+  // «contacts.email.value» подставляется внутрь микроразметки JSON-LD — там
+  // тег сломал бы разметку, поэтому помечаем только обычные текстовые поля.
+  if (!keyPath.startsWith('contacts.') || keyPath.endsWith('.value')) return '';
+  return ` data-contact-text="${keyPath.slice(9)}"`;
+}
+
 /** Незаполненные реквизиты подсвечиваем, а не прячем: так их видно на странице. */
 function renderValue(value, keyPath) {
+  const mark = contactMark(keyPath);
   if (value === undefined || value === null) {
     missing.add(keyPath);
-    return `<span class="todo">не задано: ${keyPath}</span>`;
+    return `<span class="todo"${mark}>не задано: ${keyPath}</span>`;
   }
   const str = String(value);
   if (str.includes('???')) {
     missing.add(keyPath);
-    return `<span class="todo" title="Заполнить в src/data.json">${str.replace(/\?\?\?/g, 'уточняется')}</span>`;
+    return `<span class="todo"${mark} title="Заполнить в панели управления">${str.replace(/\?\?\?/g, 'уточняется')}</span>`;
   }
-  return str;
+  return mark ? `<span${mark}>${str}</span>` : str;
 }
 
 /** {{@contacts.email}} — контакт ссылкой: mailto для почты, tel для телефона.
  *  Пока значение не заполнено, ссылки нет: набирать «уточняется» бессмысленно. */
 function renderContact(dotted) {
+  const mark = dotted.startsWith('contacts.') ? ` data-contact="${dotted.slice(9)}"` : '';
   const item = pick(data, dotted);
   if (!item || typeof item !== 'object') {
     missing.add(dotted);
-    return `<span class="todo">не задано: ${dotted}</span>`;
+    return `<span class="todo"${mark}>не задано: ${dotted}</span>`;
   }
   const value = String(item.value ?? '');
   if (!value || value.includes('???')) {
     missing.add(dotted + '.value');
-    return '<span class="todo" title="Заполнить в src/data.json">уточняется</span>';
+    return `<span class="todo"${mark} title="Заполнить в панели управления">уточняется</span>`;
   }
   let href = item.href;
   if (!href) {
@@ -108,7 +119,7 @@ function renderContact(dotted) {
   }
   // Телефон не должен переноситься по строкам: «8» отрывалась от остального номера.
   const shown = value.includes('@') ? value : value.replace(/ /g, '\u00a0');
-  return `<a href="${href}">${shown}</a>`;
+  return `<a href="${href}"${mark}>${shown}</a>`;
 }
 
 function fill(template, extra = {}) {

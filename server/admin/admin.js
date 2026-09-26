@@ -240,4 +240,115 @@
       setTimeout(function () { note.setAttribute('data-show', 'false'); }, 2500);
     }).finally(function () { btn.disabled = false; });
   });
+
+  /* ---------- Телефоны и режим работы ---------- */
+  // Значения подставляются сервером в готовые страницы: пересборка не нужна.
+  var CONTACT_FIELDS = ['dispatcher', 'reception', 'subscribers', 'accounting',
+                        'email', 'emailDocs', 'hours', 'hoursShort', 'receptionDays'];
+
+  fetch('/api/admin/contacts').then(function (r) { return r.json(); }).then(function (d) {
+    CONTACT_FIELDS.forEach(function (key) {
+      var el = document.getElementById('c-' + key);
+      if (el) el.value = d[key] || '';
+    });
+  });
+
+  /* ---------- Документы сайта ---------- */
+  var docSections = {};
+
+  function renderDocs(list) {
+    var box = document.getElementById('docs-list');
+    box.textContent = '';
+    if (!list.length) {
+      var empty = document.createElement('p');
+      empty.className = 'text-soft';
+      empty.textContent = 'Пока ничего не загружено.';
+      box.appendChild(empty);
+      return;
+    }
+    list.forEach(function (d) {
+      var row = document.createElement('div');
+      row.className = 'editor-row';
+      var title = document.createElement('p');
+      title.style.margin = '0 0 4px';
+      var link = document.createElement('a');
+      link.href = '/files/' + d.id;
+      link.target = '_blank';
+      link.textContent = d.title;
+      title.appendChild(link);
+      var meta = document.createElement('p');
+      meta.className = 'hint';
+      meta.style.margin = '0 0 8px';
+      meta.textContent = (docSections[d.section] || d.section)
+        + ' · ' + String(d.ext || '').replace('.', '').toUpperCase()
+        + ' · ' + Math.max(1, Math.round((d.size || 0) / 1024)) + ' КБ';
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'btn btn--ghost btn--sm';
+      del.textContent = 'Убрать с сайта';
+      del.addEventListener('click', function () {
+        if (!window.confirm('Убрать «' + d.title + '» с сайта? Файл останется на сервере, его можно вернуть.')) return;
+        del.disabled = true;
+        fetch('/api/admin/docs/' + encodeURIComponent(d.id) + '/delete', { method: 'POST' })
+          .then(loadDocs)
+          .catch(function () { del.disabled = false; });
+      });
+      row.appendChild(title);
+      row.appendChild(meta);
+      row.appendChild(del);
+      box.appendChild(row);
+    });
+  }
+
+  function loadDocs() {
+    return fetch('/api/admin/docs').then(function (r) { return r.json(); }).then(function (d) {
+      docSections = d.sections || {};
+      renderDocs(d.docs || []);
+    });
+  }
+  loadDocs();
+
+  document.getElementById('add-doc').addEventListener('click', function () {
+    var btn = this;
+    var file = document.getElementById('d-file').files[0];
+    var status = document.getElementById('doc-status');
+    if (!file) { status.textContent = 'Сначала выберите файл.'; return; }
+    var form = new FormData();
+    form.append('file', file);
+    form.append('title', document.getElementById('d-title').value.trim());
+    form.append('section', document.getElementById('d-section').value);
+    btn.disabled = true;
+    status.textContent = 'Загружаем…';
+    fetch('/api/admin/docs', { method: 'POST', body: form })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { status.textContent = (res.body && res.body.message) || 'Не удалось загрузить файл.'; return; }
+        status.textContent = '';
+        document.getElementById('d-file').value = '';
+        document.getElementById('d-title').value = '';
+        var note = document.getElementById('saved-doc');
+        note.setAttribute('data-show', 'true');
+        setTimeout(function () { note.setAttribute('data-show', 'false'); }, 2500);
+        return loadDocs();
+      })
+      .catch(function () { status.textContent = 'Не удалось загрузить файл.'; })
+      .finally(function () { btn.disabled = false; });
+  });
+
+  document.getElementById('save-contacts').addEventListener('click', function () {
+    var btn = this;
+    var payload = {};
+    CONTACT_FIELDS.forEach(function (key) {
+      var el = document.getElementById('c-' + key);
+      payload[key] = el ? el.value.trim() : '';
+    });
+    btn.disabled = true;
+    fetch('/api/admin/contacts', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    }).then(function (r) { return r.json(); }).then(function () {
+      var note = document.getElementById('saved-contacts');
+      note.setAttribute('data-show', 'true');
+      setTimeout(function () { note.setAttribute('data-show', 'false'); }, 2500);
+    }).finally(function () { btn.disabled = false; });
+  });
 })();

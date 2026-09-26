@@ -55,6 +55,8 @@
       <button class="tab" role="tab" data-panel="appeals"   aria-selected="false">Обращения</button>
       <button class="tab" role="tab" data-panel="contracts" aria-selected="false">Заявки на договор</button>
       <button class="tab" role="tab" data-panel="content"   aria-selected="false">Отключения и новости</button>
+      <button class="tab" role="tab" data-panel="contacts"  aria-selected="false">Телефоны и режим работы</button>
+      <button class="tab" role="tab" data-panel="docs"      aria-selected="false">Документы</button>
     </div>
 
     <section id="panel-readings" data-panel-body>
@@ -79,6 +81,115 @@
         <a class="btn btn--ghost btn--sm" href="/api/admin/export/contracts.csv">Выгрузить в CSV</a>
       </div>
       <div data-list="contracts"><p class="text-soft">Загрузка…</p></div>
+    </section>
+
+    <section id="panel-contacts" data-panel-body hidden>
+      <div class="sec-head">
+        <h2>Телефоны и режим работы</h2>
+        <span>
+          <span class="saved" id="saved-contacts">Сохранено</span>
+          <button class="btn btn--primary btn--sm" id="save-contacts" type="button">Сохранить и опубликовать</button>
+        </span>
+      </div>
+
+      <div class="card" style="margin-bottom:24px">
+        <p class="hint" style="margin-top:0">Всё, что вы здесь впишете, сразу появится на сайте: в шапке каждой
+          страницы, на главной, в контактах и в подвале. Пересобирать сайт не нужно. Пустое поле —
+          на сайте останется слово «уточняется».</p>
+
+        <div class="field">
+          <label for="c-dispatcher">Аварийно-диспетчерская служба</label>
+          <input class="control" id="c-dispatcher" maxlength="160" placeholder="8 (47354) 0-00-00">
+          <p class="hint">Круглосуточный номер. Показывается в шапке каждой страницы и первым в контактах —
+            по нему звонят при аварии, отсутствии отопления и горячей воды.</p>
+        </div>
+
+        <div class="field">
+          <label for="c-reception">Приёмная</label>
+          <input class="control" id="c-reception" maxlength="160" placeholder="8 (47354) 0-00-00">
+        </div>
+
+        <div class="field">
+          <label for="c-subscribers">Абонентский отдел</label>
+          <input class="control" id="c-subscribers" maxlength="160" placeholder="8 (47354) 0-00-00">
+          <p class="hint">Показания, начисления, договоры, справки о задолженности.</p>
+        </div>
+
+        <div class="field">
+          <label for="c-accounting">Бухгалтерия</label>
+          <input class="control" id="c-accounting" maxlength="160" placeholder="8 (47354) 0-00-00">
+        </div>
+
+        <div class="field">
+          <label for="c-email">Электронная почта</label>
+          <input class="control" id="c-email" type="email" maxlength="160" placeholder="borisoglebskteplo@govvrn.ru">
+        </div>
+
+        <div class="field">
+          <label for="c-emailDocs">Почта для документов и обращений</label>
+          <input class="control" id="c-emailDocs" type="email" maxlength="160" placeholder="borisoglebskteplo@govvrn.ru">
+          <p class="hint">Если отдельной почты нет — впишите ту же, что и выше.</p>
+        </div>
+
+        <div class="field">
+          <label for="c-hours">Режим работы полностью</label>
+          <input class="control" id="c-hours" maxlength="160" placeholder="Понедельник — пятница, 8:00 — 17:00, перерыв 12:00 — 13:00">
+        </div>
+
+        <div class="field">
+          <label for="c-hoursShort">Режим работы кратко</label>
+          <input class="control" id="c-hoursShort" maxlength="160" placeholder="Пн — Пт, 8:00 — 17:00">
+          <p class="hint">Короткая запись для подвала сайта и шапки.</p>
+        </div>
+
+        <div class="field">
+          <label for="c-receptionDays">Дни и часы приёма граждан</label>
+          <input class="control" id="c-receptionDays" maxlength="160" placeholder="Вторник и четверг, 9:00 — 12:00">
+        </div>
+      </div>
+    </section>
+
+    <section id="panel-docs" data-panel-body hidden>
+      <div class="sec-head">
+        <h2>Документы сайта</h2>
+        <span class="saved" id="saved-doc">Загружено</span>
+      </div>
+
+      <div class="card" style="margin-bottom:24px">
+        <h3>Добавить документ</h3>
+        <p class="hint">Выберите файл на компьютере, впишите понятное название и укажите, в каком разделе
+          сайта он должен появиться. Документ публикуется сразу. Принимаются PDF, Word, Excel и картинки
+          размером до 25 МБ.</p>
+
+        <div class="field">
+          <label for="d-file">Файл</label>
+          <input class="control" type="file" id="d-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+        </div>
+
+        <div class="field">
+          <label for="d-title">Название на сайте</label>
+          <input class="control" id="d-title" maxlength="200" placeholder="Например: Приказ об установлении тарифа на 2027 год">
+          <p class="hint">Так документ будет назван в списке. Если оставить пустым, возьмём имя файла.</p>
+        </div>
+
+        <div class="field">
+          <label for="d-section">В каком разделе показать</label>
+          <select class="control" id="d-section" style="max-width:340px">
+            <option value="raskrytie">Раскрытие информации</option>
+            <option value="ustav">Учредительные документы (О предприятии)</option>
+            <option value="tarify">Тарифы</option>
+            <option value="prochee">Прочие документы</option>
+          </select>
+        </div>
+
+        <button class="btn btn--primary" id="add-doc" type="button">Загрузить и опубликовать</button>
+        <p class="hint" id="doc-status" style="margin-top:8px"></p>
+      </div>
+
+      <div class="card">
+        <h3>Загруженные документы</h3>
+        <div id="docs-list"><p class="text-soft">Загрузка…</p></div>
+      </div>
     </section>
 
     <section id="panel-content" data-panel-body hidden>

@@ -94,6 +94,25 @@ async function writeContent(data) {
   await fsp.rename(tmp, CONTENT_FILE);
 }
 
+// Телефоны и режим работы: вписываются в панели управления и подставляются
+// в готовые страницы при отдаче. Пересобирать сайт для этого не нужно.
+const CONTACTS_FILE = path.join(DATA_DIR, 'contacts.json');
+
+async function readContacts() {
+  try {
+    return JSON.parse(await fsp.readFile(CONTACTS_FILE, 'utf8'));
+  } catch (err) {
+    if (err.code === 'ENOENT') return {};
+    throw err;
+  }
+}
+
+async function writeContacts(data) {
+  const tmp = CONTACTS_FILE + '.tmp';
+  await fsp.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
+  await fsp.rename(tmp, CONTACTS_FILE);
+}
+
 /* ------------------------------------------------------------------ */
 /* Утилиты                                                             */
 /* ------------------------------------------------------------------ */
@@ -261,6 +280,84 @@ const upload = multer({
 });
 
 /* ------------------------------------------------------------------ */
+/* Документы сайта: загружаются в панели управления                    */
+/* ------------------------------------------------------------------ */
+
+const DOCS_DIR = path.join(DATA_DIR, 'docs');
+const DOCS_FILE = path.join(DATA_DIR, 'docs.json');
+fs.mkdirSync(DOCS_DIR, { recursive: true });
+
+// Разделы сайта, куда можно положить документ из панели.
+const DOC_SECTIONS = {
+  ustav: 'Учредительные документы',
+  raskrytie: 'Раскрытие информации',
+  tarify: 'Тарифы',
+  prochee: 'Прочие документы',
+};
+
+async function readDocs() {
+  try {
+    const list = JSON.parse(await fsp.readFile(DOCS_FILE, 'utf8'));
+    return Array.isArray(list) ? list : [];
+  } catch (err) {
+    if (err.code === 'ENOENT') return [];
+    throw err;
+  }
+}
+
+async function writeDocs(list) {
+  const tmp = DOCS_FILE + '.tmp';
+  await fsp.writeFile(tmp, JSON.stringify(list, null, 2), 'utf8');
+  await fsp.rename(tmp, DOCS_FILE);
+}
+
+const docUpload = multer({
+  storage: multer.diskStorage({
+    destination(req, file, cb) { cb(null, DOCS_DIR); },
+    filename(req, file, cb) {
+      const original = Buffer.from(file.originalname, 'latin1').toString('utf8');
+      file._displayName = original;
+      // Имя на диске случайное: файл отдаётся по ссылке /files/<id>, а имя
+      // для скачивания берётся из названия, которое ввели в панели.
+      cb(null, `${crypto.randomUUID()}${path.extname(original).toLowerCase()}`);
+    },
+  }),
+  limits: { fileSize: 25 * 1024 * 1024, files: 1, fields: 10 },
+  fileFilter(req, file, cb) {
+    const original = Buffer.from(file.originalname, 'latin1').toString('utf8');
+    const ext = path.extname(original).toLowerCase();
+    if (!ALLOWED_EXT.has(ext)) {
+      return cb(new Error(`Формат «${ext || 'без расширения'}» не принимается. Допустимы PDF, JPG, PNG, DOC, DOCX, XLS, XLSX.`));
+    }
+    cb(null, true);
+  },
+});
+
+function fileSize(bytes) {
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} МБ` : `${Math.max(1, Math.round(bytes / 1024))} КБ`;
+}
+
+function withDocs(html, docs) {
+  return html.replace(/<div data-docs="(\w+)"><\/div>/g, (full, section) => {
+    const list = docs.filter((d) => d.section === section);
+    if (!list.length) return '';
+    const items = list.map((d) => {
+      const ext = String(d.ext || '').replace('.', '').toUpperCase();
+      const icon = ext === 'PDF' ? 'i-pdf' : 'i-doc';
+      const added = d.uploaded ? new Date(d.uploaded).toLocaleDateString('ru-RU') : '';
+      return `<li><a class="doc" href="/files/${escapeHtml(d.id)}">`
+        + `<span class="doc__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#${icon}"></use></svg></span>`
+        + '<span class="doc__body">'
+        + `<span class="doc__title">${escapeHtml(d.title)}</span>`
+        + `<span class="doc__meta"><span>${escapeHtml(ext)} · ${escapeHtml(fileSize(d.size || 0))}</span>`
+        + (added ? `<span>добавлен ${escapeHtml(added)}</span>` : '')
+        + '</span></span></a></li>';
+    }).join('');
+    return `<ul class="doclist">${items}</ul>`;
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Приложение                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -325,12 +422,48 @@ function withTicket(html, value) {
     .replace('<p id="message-line">Заявка принята и передана специалисту.</p>', () => `<p id="message-line">${escapeHtml(thanks)}</p>`);
 }
 
+// Контакты в готовых страницах помечены атрибутами data-contact (ссылка:
+// телефон, почта) и data-contact-text (режим работы). Здесь подставляем то,
+// что вписали в панели управления.
+const CONTACT_LINKS = ['dispatcher', 'reception', 'subscribers', 'accounting', 'email', 'emailDocs'];
+const CONTACT_TEXTS = ['hours', 'hoursShort', 'receptionDays'];
+
+function contactLink(key, raw) {
+  const value = String(raw || '').trim();
+  if (!value) return null;
+  const href = value.includes('@') ? `mailto:${value}` : `tel:${value.replace(/[^\d+]/g, '')}`;
+  // Телефон не должен переноситься по строкам: «8» отрывается от номера.
+  const shown = value.includes('@') ? value : value.replace(/ /g, ' ');
+  return `<a href="${escapeHtml(href)}" data-contact="${key}">${escapeHtml(shown)}</a>`;
+}
+
+function withContacts(html, contacts) {
+  if (!contacts) return html;
+  let out = html;
+  for (const key of CONTACT_LINKS) {
+    const rendered = contactLink(key, contacts[key]);
+    if (!rendered) continue;
+    out = out.replace(new RegExp(`<(a|span)\\b[^>]*data-contact="${key}"[^>]*>[\\s\\S]*?</\\1>`, 'g'), () => rendered);
+  }
+  for (const key of CONTACT_TEXTS) {
+    const value = String(contacts[key] || '').trim();
+    if (!value) continue;
+    out = out.replace(
+      new RegExp(`<span\\b[^>]*data-contact-text="${key}"[^>]*>[\\s\\S]*?</span>`, 'g'),
+      () => `<span data-contact-text="${key}">${escapeHtml(value)}</span>`,
+    );
+  }
+  return out;
+}
+
 app.get(/^\/(?:[\w-]+(?:\.html)?)?$/, async (req, res, next) => {
   const name = req.path === '/' ? 'index' : req.path.slice(1).replace(/\.html$/, '');
   const file = `${name}.html`;
   if (!PAGE_FILES.has(file)) return next();
   try {
     let html = withAnnouncement(await pageHtml(file), publicContent(await readContent()).announcement);
+    html = withContacts(html, await readContacts());
+    html = withDocs(html, await readDocs());
     if (file === 'spasibo.html') html = withTicket(html, req.query.ticket);
     res.setHeader('Cache-Control', 'no-cache');
     res.type('html').send(html);
@@ -510,6 +643,19 @@ app.post('/api/contracts', formLimiter, upload.array('files', MAX_FILES), async 
 
 /* ---------- Публичный контент ---------- */
 
+// Документы, добавленные в панели, доступны всем по короткой ссылке.
+app.get('/files/:id', async (req, res) => {
+  const docs = await readDocs();
+  const item = docs.find((d) => d.id === req.params.id);
+  if (!item) return res.status(404).end();
+  const target = path.resolve(DOCS_DIR, item.file);
+  if (!target.startsWith(DOCS_DIR + path.sep)) return res.status(400).end();
+  // Имя для скачивания — понятное название из панели, а не случайный код.
+  const name = `${String(item.title).replace(/[^\p{L}\p{N}\s._-]/gu, '').trim() || 'dokument'}${item.ext || ''}`;
+  res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(name)}`);
+  res.sendFile(target, (err) => { if (err && !res.headersSent) res.status(404).end(); });
+});
+
 app.get('/api/content', async (req, res) => {
   const content = publicContent(await readContent());
   res.setHeader('Cache-Control', 'no-cache');
@@ -608,6 +754,52 @@ app.get('/api/admin/file/*', (req, res) => {
   res.sendFile(target, (err) => { if (err) res.status(404).end(); });
 });
 
+app.get('/api/admin/docs', async (req, res) => res.json({ sections: DOC_SECTIONS, docs: await readDocs() }));
+
+app.post('/api/admin/docs', docUpload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ ok: false, message: 'Файл не выбран' });
+  const section = Object.prototype.hasOwnProperty.call(DOC_SECTIONS, req.body.section) ? req.body.section : 'prochee';
+  const title = clean(req.body.title, 200) || req.file._displayName || 'Документ';
+  const docs = await readDocs();
+  docs.unshift({
+    id: path.basename(req.file.filename, path.extname(req.file.filename)),
+    title,
+    section,
+    file: req.file.filename,
+    ext: path.extname(req.file.filename).toLowerCase(),
+    size: req.file.size,
+    uploaded: new Date().toISOString(),
+  });
+  await writeDocs(docs);
+  res.json({ ok: true });
+});
+
+app.post('/api/admin/docs/:id/delete', async (req, res) => {
+  const docs = await readDocs();
+  const item = docs.find((d) => d.id === req.params.id);
+  if (!item) return res.status(404).json({ ok: false });
+  await writeDocs(docs.filter((d) => d.id !== item.id));
+  // Сам файл не удаляем сразу: переносим в подпапку «удалённые», чтобы
+  // случайное нажатие в панели не уничтожило документ безвозвратно.
+  const trash = path.join(DOCS_DIR, 'udalennye');
+  await fsp.mkdir(trash, { recursive: true });
+  await fsp.rename(path.join(DOCS_DIR, item.file), path.join(trash, item.file)).catch(() => {});
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/contacts', async (req, res) => res.json(await readContacts()));
+
+app.post('/api/admin/contacts', express.json({ limit: '64kb' }), async (req, res) => {
+  const body = req.body || {};
+  const out = {};
+  for (const key of [...CONTACT_LINKS, ...CONTACT_TEXTS]) {
+    const value = clean(body[key], 160);
+    if (value) out[key] = value;
+  }
+  await writeContacts(out);
+  res.json({ ok: true, saved: Object.keys(out).length });
+});
+
 app.get('/api/admin/content', async (req, res) => res.json(await readContent()));
 
 app.post('/api/admin/content', express.json({ limit: '512kb' }), async (req, res) => {
@@ -665,6 +857,15 @@ app.post('/api/admin/status', express.json(), async (req, res) => {
 /* ------------------------------------------------------------------ */
 
 app.use((err, req, res, next) => {
+  // Панель управления ждёт ответ в JSON: перенаправление на «Заявка отправлена»
+  // там неуместно — человек должен увидеть причину отказа прямо в панели.
+  if (req.path.startsWith('/api/admin/')) {
+    const message = err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE'
+      ? 'Файл больше 25 МБ. Уменьшите размер и попробуйте снова.'
+      : (err && err.message) || 'Не удалось выполнить действие';
+    console.error('[admin]', err);
+    return res.status(400).json({ ok: false, message });
+  }
   if (err instanceof multer.MulterError) {
     const map = {
       LIMIT_FILE_SIZE: `Файл больше ${MAX_FILE_MB} МБ. Уменьшите размер и попробуйте снова.`,
