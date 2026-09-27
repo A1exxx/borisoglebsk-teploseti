@@ -29,6 +29,9 @@
   .editor-row { display: grid; gap: var(--s3); grid-template-columns: 1fr; border: 1px solid var(--c-border);
                 border-radius: var(--radius-lg); padding: var(--s4); margin-bottom: var(--s3); background: #fff; }
   @media (min-width: 900px) { .editor-row { grid-template-columns: 160px 1fr 1fr; align-items: start; } }
+  /* В списке документов первая колонка — название, ему нужно место: в 160px
+     длинное название ломается на три строки. */
+  @media (min-width: 900px) { #docs-list .editor-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; align-items: center; } }
   .editor-row .control { min-height: 44px; }
   .rowbar { display: flex; gap: var(--s2); justify-content: flex-end; margin-top: var(--s2); }
   .btn--sm { min-height: 40px; padding: 8px 14px; font-size: .92rem; }
