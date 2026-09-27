@@ -342,7 +342,14 @@
     btn.disabled = true;
     status.textContent = 'Загружаем…';
     fetch('/api/admin/docs', { method: 'POST', body: form })
-      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+      // Слишком большой файл сервер может отрезать раньше приложения — тогда
+      // в ответе не JSON, а страница ошибки: объясняем это человеческими словами.
+      .then(function (r) {
+        if (r.status === 413) return { ok: false, body: { message: 'Файл слишком большой. Уменьшите размер и попробуйте снова.' } };
+        return r.json()
+          .then(function (j) { return { ok: r.ok, body: j }; })
+          .catch(function () { return { ok: false, body: { message: 'Файл не загрузился. Попробуйте файл меньшего размера или другой формат.' } }; });
+      })
       .then(function (res) {
         if (!res.ok) { status.textContent = (res.body && res.body.message) || 'Не удалось загрузить файл.'; return; }
         status.textContent = '';
