@@ -287,13 +287,37 @@ const DOCS_DIR = path.join(DATA_DIR, 'docs');
 const DOCS_FILE = path.join(DATA_DIR, 'docs.json');
 fs.mkdirSync(DOCS_DIR, { recursive: true });
 
-// Разделы сайта, куда можно положить документ из панели.
+// Разделы сайта, куда можно положить документ из панели. Ключи r_* — категории
+// раскрытия информации по постановлению Правительства РФ от 26.01.2023 № 110:
+// документ встаёт внутрь своей категории на странице «Раскрытие информации»
+// и заменяет там пометку о сроке публикации.
 const DOC_SECTIONS = {
-  ustav: 'Учредительные документы',
-  raskrytie: 'Раскрытие информации',
+  ustav: 'О предприятии — учредительные документы',
+  raskrytie: 'Раскрытие информации — в конце страницы',
   tarify: 'Тарифы',
   prochee: 'Прочие документы',
+  r_obshchaya: 'а) Общая информация об организации',
+  r_ceny: 'б) Цены (тарифы) на регулируемые товары и услуги',
+  r_pokazateli: 'в) Основные показатели финансово-хозяйственной деятельности',
+  r_nadezhnost: 'г) Показатели надёжности и качества обслуживания',
+  r_invest: 'д) Инвестиционная программа',
+  r_tehvozm: 'е) Наличие технической возможности подключения',
+  r_usloviya: 'ж) Условия поставки товаров и оказания услуг',
+  r_podklyuchenie: 'з) Порядок технологических действий при подключении',
+  r_zakupki: 'и) Способы приобретения товаров, работ и услуг',
+  r_predlozhenie: 'к) Предложение об установлении цен (тарифов)',
 };
+
+// Группы для выпадающего списка в панели: человек выбирает раздел глазами,
+// поэтому категории раскрытия собраны отдельно от обычных страниц.
+const DOC_GROUPS = [
+  { title: 'Страницы сайта', keys: ['ustav', 'tarify', 'raskrytie', 'prochee'] },
+  {
+    title: 'Раскрытие информации — категории постановления № 110',
+    keys: ['r_obshchaya', 'r_ceny', 'r_pokazateli', 'r_nadezhnost', 'r_invest',
+      'r_tehvozm', 'r_usloviya', 'r_podklyuchenie', 'r_zakupki', 'r_predlozhenie'],
+  },
+];
 
 async function readDocs() {
   try {
@@ -337,10 +361,22 @@ function fileSize(bytes) {
   return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} МБ` : `${Math.max(1, Math.round(bytes / 1024))} КБ`;
 }
 
+// Метка <div data-docs="раздел">…</div> заменяется списком загруженных документов.
+// Текст внутри метки — то, что видно, пока документов нет: например, пометка
+// «срок раскрытия — до 30 апреля». Внутри метки допустимы только простые теги
+// без вложенных <div>: подстановка ищет первый закрывающий </div>.
+// Метка с data-docs-status получает ещё и зелёную пометку «Раскрыто» —
+// её ставят у категорий раскрытия, где состояние важно показать явно.
 function withDocs(html, docs) {
-  return html.replace(/<div data-docs="(\w+)"><\/div>/g, (full, section) => {
+  return html.replace(/<div data-docs="([\w-]+)"([^>]*)>([\s\S]*?)<\/div>/g, (full, section, attrs, fallback) => {
     const list = docs.filter((d) => d.section === section);
-    if (!list.length) return '';
+    if (!list.length) return fallback;
+    const badge = attrs.includes('data-docs-status')
+      ? '<p class="badge badge--ok badge--dot">Раскрыто</p>'
+      : '';
+    // data-docs-title — заголовок в отдельной карточке: появляется вместе с первым
+    // документом и исчезает, если все документы убрали из раздела.
+    const titled = /data-docs-title="([^"]*)"/.exec(attrs);
     const items = list.map((d) => {
       const ext = String(d.ext || '').replace('.', '').toUpperCase();
       const icon = ext === 'PDF' ? 'i-pdf' : 'i-doc';
@@ -353,7 +389,10 @@ function withDocs(html, docs) {
         + (added ? `<span>добавлен ${escapeHtml(added)}</span>` : '')
         + '</span></span></a></li>';
     }).join('');
-    return `<ul class="doclist">${items}</ul>`;
+    const body = `${badge}<ul class="doclist">${items}</ul>`;
+    return titled
+      ? `<div class="card mt-5"><h3>${escapeHtml(titled[1])}</h3>${body}</div>`
+      : body;
   });
 }
 
@@ -754,7 +793,8 @@ app.get('/api/admin/file/*', (req, res) => {
   res.sendFile(target, (err) => { if (err) res.status(404).end(); });
 });
 
-app.get('/api/admin/docs', async (req, res) => res.json({ sections: DOC_SECTIONS, docs: await readDocs() }));
+app.get('/api/admin/docs', async (req, res) =>
+  res.json({ sections: DOC_SECTIONS, groups: DOC_GROUPS, docs: await readDocs() }));
 
 app.post('/api/admin/docs', docUpload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ ok: false, message: 'Файл не выбран' });

@@ -174,12 +174,13 @@
 
         <div class="field">
           <label for="d-section">В каком разделе показать</label>
-          <select class="control" id="d-section" style="max-width:340px">
-            <option value="raskrytie">Раскрытие информации</option>
-            <option value="ustav">Учредительные документы (О предприятии)</option>
-            <option value="tarify">Тарифы</option>
+          <!-- Список разделов приходит с сервера: там же лежат категории
+               раскрытия информации по постановлению № 110. -->
+          <select class="control" id="d-section" style="max-width:520px">
             <option value="prochee">Прочие документы</option>
           </select>
+          <p class="hint">Если выбрать категорию раскрытия, документ встанет прямо внутрь этой категории
+            на странице «Раскрытие информации», а пометка о сроке публикации сменится на «Раскрыто».</p>
         </div>
 
         <button class="btn btn--primary" id="add-doc" type="button">Загрузить и опубликовать</button>

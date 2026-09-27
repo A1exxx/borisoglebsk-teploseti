@@ -300,9 +300,31 @@
     });
   }
 
+  // Список разделов в выпадающем меню собираем из ответа сервера, чтобы
+  // категории раскрытия не пришлось дублировать руками в разметке панели.
+  function fillSections(groups) {
+    var select = document.getElementById('d-section');
+    if (!groups || !groups.length) return;
+    var current = select.value;
+    select.textContent = '';
+    groups.forEach(function (group) {
+      var box = document.createElement('optgroup');
+      box.label = group.title;
+      (group.keys || []).forEach(function (key) {
+        var option = document.createElement('option');
+        option.value = key;
+        option.textContent = docSections[key] || key;
+        box.appendChild(option);
+      });
+      select.appendChild(box);
+    });
+    if (current) select.value = current;
+  }
+
   function loadDocs() {
     return fetch('/api/admin/docs').then(function (r) { return r.json(); }).then(function (d) {
       docSections = d.sections || {};
+      fillSections(d.groups);
       renderDocs(d.docs || []);
     });
   }
