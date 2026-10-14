@@ -126,8 +126,18 @@ function renderContact(dotted) {
       : 'tel:' + value.replace(/[^\d+]/g, '');
   }
   // Телефон не должен переноситься по строкам: «8» отрывалась от остального номера.
-  const shown = value.includes('@') ? value : value.replace(/ /g, '\u00a0');
+  // Почта не должна рваться посреди слова: даём перенос после «@» и перед доменом верхнего уровня.
+  const shown = value.includes('@')
+    ? value.replace('@', '@<wbr>').replace(/\.(?=[^.]*$)/, '<wbr>.')
+    : value.replace(/ /g, ' ');
   return `<a href="${href}"${mark}>${shown}</a>`;
+}
+
+/** Та же склейка, но по готовой странице: только в тексте, не трогая теги и скрипты.
+ *  Иначе «№» отрывается от номера закона, а «ст.» — от статьи. */
+function typography(html) {
+  const parts = html.split(/(<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<[^>]+>)/g);
+  return parts.map((part, i) => (i % 2 ? part : glueAbbr(part))).join('');
 }
 
 function fill(template, extra = {}) {
@@ -213,7 +223,7 @@ for (const file of fs.readdirSync(PAGES).filter((f) => f.endsWith('.html')).sort
   });
 
   // В машинных данных для поисковиков адрес должен быть с обычными пробелами.
-  const ready = withBase(html).replace(
+  const ready = typography(withBase(html)).replace(
     /(<script type="application\/ld\+json">)([\s\S]*?)(<\/script>)/g,
     (m, open, body, close) => open + body.replace(/ /g, ' ') + close);
   fs.writeFileSync(path.join(OUT, file), ready, 'utf8');
