@@ -296,10 +296,13 @@ const DOC_SECTIONS = {
   raskrytie: 'Раскрытие информации — в конце страницы',
   tarify: 'Тарифы',
   zakupki: 'Закупки — положение, план, приказы',
+  tipovye: 'Типовые документы — образцы договоров и бланки',
+  korrupciya: 'Противодействие коррупции — политика, кодекс, формы',
   prochee: 'Прочие документы',
   r_obshchaya: 'а) Общая информация об организации',
   r_ceny: 'б) Цены (тарифы) на регулируемые товары и услуги',
-  r_pokazateli: 'в) Основные показатели финансово-хозяйственной деятельности',
+  r_pokazateli: 'в) Бухгалтерская отчётность',
+  r_zarplata: 'в) Зарплата директора и главного бухгалтера',
   r_nadezhnost: 'г) Показатели надёжности и качества обслуживания',
   r_invest: 'д) Инвестиционная программа',
   r_tehvozm: 'е) Наличие технической возможности подключения',
@@ -312,10 +315,10 @@ const DOC_SECTIONS = {
 // Группы для выпадающего списка в панели: человек выбирает раздел глазами,
 // поэтому категории раскрытия собраны отдельно от обычных страниц.
 const DOC_GROUPS = [
-  { title: 'Страницы сайта', keys: ['ustav', 'tarify', 'zakupki', 'raskrytie', 'prochee'] },
+  { title: 'Страницы сайта', keys: ['ustav', 'tarify', 'zakupki', 'tipovye', 'korrupciya', 'raskrytie', 'prochee'] },
   {
     title: 'Раскрытие информации — категории постановления № 110',
-    keys: ['r_obshchaya', 'r_ceny', 'r_pokazateli', 'r_nadezhnost', 'r_invest',
+    keys: ['r_obshchaya', 'r_ceny', 'r_pokazateli', 'r_zarplata', 'r_nadezhnost', 'r_invest',
       'r_tehvozm', 'r_usloviya', 'r_podklyuchenie', 'r_zakupki', 'r_predlozhenie'],
   },
 ];
@@ -335,6 +338,34 @@ async function writeDocs(list) {
   await fsp.writeFile(tmp, JSON.stringify(list, null, 2), 'utf8');
   await fsp.rename(tmp, DOCS_FILE);
 }
+
+// Картинки объявлений: сотрудник загружает их в панели, файл кладётся рядом
+// с документами, но в свою папку — объявления живут отдельно от документов
+// раскрытия и удаляются вместе с объявлением.
+const NEWS_DIR = path.join(DATA_DIR, 'news');
+fs.mkdirSync(NEWS_DIR, { recursive: true });
+
+const NEWS_IMG_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+const NEWS_FILE_RE = /^[0-9a-f-]{36}\.(jpg|jpeg|png|webp)$/;
+
+const newsImageUpload = multer({
+  storage: multer.diskStorage({
+    destination(req, file, cb) { cb(null, NEWS_DIR); },
+    filename(req, file, cb) {
+      const original = Buffer.from(file.originalname, 'latin1').toString('utf8');
+      cb(null, `${crypto.randomUUID()}${path.extname(original).toLowerCase()}`);
+    },
+  }),
+  limits: { fileSize: 8 * 1024 * 1024, files: 1, fields: 4 },
+  fileFilter(req, file, cb) {
+    const original = Buffer.from(file.originalname, 'latin1').toString('utf8');
+    const ext = path.extname(original).toLowerCase();
+    if (!NEWS_IMG_EXT.has(ext)) {
+      return cb(new Error('Для объявления подходит картинка JPG, PNG или WEBP.'));
+    }
+    cb(null, true);
+  },
+});
 
 const docUpload = multer({
   storage: multer.diskStorage({
@@ -684,6 +715,16 @@ app.post('/api/contracts', formLimiter, upload.array('files', MAX_FILES), async 
 /* ---------- Публичный контент ---------- */
 
 // Документы, добавленные в панели, доступны всем по короткой ссылке.
+// Картинка объявления. Имя файла задаёт сервер при загрузке, поэтому проверка
+// по шаблону исключает выход за пределы папки.
+app.get('/files/news/:name', (req, res) => {
+  if (!NEWS_FILE_RE.test(req.params.name)) return res.status(404).end();
+  const target = path.resolve(NEWS_DIR, req.params.name);
+  if (!target.startsWith(NEWS_DIR + path.sep)) return res.status(400).end();
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.sendFile(target, (err) => { if (err && !res.headersSent) res.status(404).end(); });
+});
+
 app.get('/files/:id', async (req, res) => {
   const docs = await readDocs();
   const item = docs.find((d) => d.id === req.params.id);
@@ -869,11 +910,29 @@ app.post('/api/admin/content', express.json({ limit: '512kb' }), async (req, res
       date: clean(n.date, 20),
       title: clean(n.title, 200),
       text: cleanMultiline(n.text, 4000),
+      // Имя файла картинки: сохраняем только то, что сервер сам и выдал.
+      image: NEWS_FILE_RE.test(clean(n.image, 80)) ? clean(n.image, 80) : '',
       pinned: Boolean(n.pinned),
     })) : [],
   };
   await writeContent(content);
   res.json({ ok: true });
+});
+
+// Загрузка картинки объявления. Возвращает имя файла — его панель кладёт
+// в объявление и показывает в предпросмотре.
+app.post('/api/admin/news-image', (req, res) => {
+  newsImageUpload.single('image')(req, res, (err) => {
+    if (err) {
+      const tooBig = err.code === 'LIMIT_FILE_SIZE';
+      return res.status(400).json({
+        ok: false,
+        error: tooBig ? 'Картинка больше 8 МБ. Уменьшите её и попробуйте снова.' : err.message,
+      });
+    }
+    if (!req.file) return res.status(400).json({ ok: false, error: 'Файл не выбран.' });
+    res.json({ ok: true, image: req.file.filename, url: `/files/news/${req.file.filename}` });
+  });
 });
 
 app.post('/api/admin/status', express.json(), async (req, res) => {

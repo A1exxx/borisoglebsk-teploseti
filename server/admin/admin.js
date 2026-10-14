@@ -179,6 +179,14 @@
       '</div>' +
       '<div class="field" style="margin:0"><label>Текст</label>' +
         '<textarea class="control" data-f="text" rows="4" style="min-height:110px"></textarea>' +
+        '<label style="margin-top:12px;display:block">Картинка — необязательно</label>' +
+        '<input class="control" type="file" data-f="imagefile" accept="image/jpeg,image/png,image/webp">' +
+        '<input type="hidden" data-f="image">' +
+        '<p class="hint" data-img-status style="margin:6px 0 0"></p>' +
+        '<div data-img-preview hidden style="margin-top:10px">' +
+          '<img alt="" style="display:block;width:100%;max-width:360px;aspect-ratio:16/9;object-fit:cover;border-radius:10px">' +
+          '<button class="btn btn--ghost btn--sm" type="button" data-img-clear style="margin-top:8px">Убрать картинку</button>' +
+        '</div>' +
         '<div class="rowbar"><button class="btn btn--ghost btn--sm btn--danger" type="button" data-del>Удалить</button></div>' +
       '</div>';
     row.querySelector('[data-f="date"]').value = n.date || new Date().toISOString().slice(0, 10);
@@ -186,6 +194,58 @@
     row.querySelector('[data-f="text"]').value = n.text || '';
     row.querySelector('[data-f="pinned"]').checked = Boolean(n.pinned);
     row.querySelector('[data-del]').addEventListener('click', function () { row.remove(); });
+
+    /* Картинка: сразу после выбора уходит на сервер и показывается, как будет
+       видно на сайте. Так сотрудник видит результат до сохранения. */
+    var hidden = row.querySelector('[data-f="image"]');
+    var fileInput = row.querySelector('[data-f="imagefile"]');
+    var status = row.querySelector('[data-img-status]');
+    var preview = row.querySelector('[data-img-preview]');
+    var previewImg = preview.querySelector('img');
+
+    function showImage(name) {
+      hidden.value = name || '';
+      if (name) {
+        previewImg.src = '/files/news/' + name;
+        preview.hidden = false;
+      } else {
+        previewImg.removeAttribute('src');
+        preview.hidden = true;
+      }
+    }
+    showImage(n.image || '');
+
+    fileInput.addEventListener('change', function () {
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      status.textContent = 'Загружаю картинку…';
+      status.style.color = '';
+      var fd = new FormData();
+      fd.append('image', file);
+      fetch('/api/admin/news-image', { method: 'POST', body: fd })
+        .then(function (r) { return r.json().catch(function () { return { ok: false, error: 'Сервер ответил неожиданно. Попробуйте ещё раз.' }; }); })
+        .then(function (d) {
+          if (!d.ok) {
+            status.style.color = '#b42318';
+            status.textContent = d.error || 'Картинку загрузить не удалось.';
+            return;
+          }
+          showImage(d.image);
+          status.style.color = '';
+          status.textContent = 'Картинка загружена. Так она будет видна на сайте.';
+        })
+        .catch(function () {
+          status.style.color = '#b42318';
+          status.textContent = 'Нет связи с сервером. Проверьте интернет и повторите.';
+        })
+        .finally(function () { fileInput.value = ''; });
+    });
+
+    row.querySelector('[data-img-clear]').addEventListener('click', function () {
+      showImage('');
+      status.textContent = 'Картинка убрана. Нажмите «Сохранить и опубликовать».';
+    });
+
     return row;
   }
 
@@ -227,6 +287,7 @@
       news: [].map.call(document.querySelectorAll('#news-editor .editor-row'), function (row, i) {
         var g = function (f) { var el = row.querySelector('[data-f="' + f + '"]'); return el ? el.value : ''; };
         return { id: 'n' + Date.now() + i, date: g('date'), title: g('title'), text: g('text'),
+                 image: g('image'),
                  pinned: row.querySelector('[data-f="pinned"]').checked };
       })
     };

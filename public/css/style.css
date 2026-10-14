@@ -1311,3 +1311,9 @@ html[data-vision="on"] .svc__ico { background: var(--c-surface); color: var(--c-
 }
 html[data-vision="on"] .hero--twin ~ .section .svc::before { color: var(--c-text); font-family: var(--font-ui); }
 html[data-vision="on"] .hero--twin ~ .section .svc { border-bottom-width: 2px; }
+
+/* Объявление с картинкой: сотрудник грузит любую, вид не ломается —
+   картинка вписывается в рамку с постоянным соотношением сторон. */
+.newsitem__media{margin-top:14px;border-radius:12px;overflow:hidden;background:var(--surface-2,#f4f4f5)}
+.newsitem__media img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
+@media (max-width:640px){.newsitem__media img{aspect-ratio:4/3}}

@@ -441,7 +441,20 @@
       text.className = 'newsitem__text';
       text.textContent = n.text || '';
 
-      art.append(meta, title, text);
+      if (n.image) {
+        var fig = document.createElement('div');
+        fig.className = 'newsitem__media';
+        var img = document.createElement('img');
+        img.src = '/files/news/' + n.image;
+        img.alt = n.title || 'Объявление';
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        fig.appendChild(img);
+        art.classList.add('newsitem--media');
+        art.append(meta, title, text, fig);
+      } else {
+        art.append(meta, title, text);
+      }
       li.appendChild(art);
       container.appendChild(li);
     });
