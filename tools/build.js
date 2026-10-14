@@ -82,6 +82,14 @@ function contactMark(keyPath) {
   return ` data-contact-text="${keyPath.slice(9)}"`;
 }
 
+/** Короткие сокращения в адресах не должны отрываться от слова при переносе:
+ *  «г. Борисоглебск», «зд. 117». Поэтому пробел после них — неразрывный. */
+const ADDR_ABBR = /(^|[\s(«"])((?:г|ул|зд|д|кв|пом|оф|каб|корп|стр|пр|пр-кт|пер|пл|мкр|обл|р-н|с|пос|им|тел|стр)\.)\s+/g;
+function glueAbbr(str) {
+  return String(str).replace(ADDR_ABBR, (m, before, abbr) => before + abbr + ' ')
+                    .replace(/№\s+/g, '№ ');
+}
+
 /** Незаполненные реквизиты подсвечиваем, а не прячем: так их видно на странице. */
 function renderValue(value, keyPath) {
   const mark = contactMark(keyPath);
@@ -89,7 +97,7 @@ function renderValue(value, keyPath) {
     missing.add(keyPath);
     return `<span class="todo"${mark}>не задано: ${keyPath}</span>`;
   }
-  const str = String(value);
+  const str = glueAbbr(value);
   if (str.includes('???')) {
     missing.add(keyPath);
     return `<span class="todo"${mark} title="Заполнить в панели управления">${str.replace(/\?\?\?/g, 'уточняется')}</span>`;
@@ -204,7 +212,11 @@ for (const file of fs.readdirSync(PAGES).filter((f) => f.endsWith('.html')).sort
     content: fill(body),
   });
 
-  fs.writeFileSync(path.join(OUT, file), withBase(html), 'utf8');
+  // В машинных данных для поисковиков адрес должен быть с обычными пробелами.
+  const ready = withBase(html).replace(
+    /(<script type="application\/ld\+json">)([\s\S]*?)(<\/script>)/g,
+    (m, open, body, close) => open + body.replace(/ /g, ' ') + close);
+  fs.writeFileSync(path.join(OUT, file), ready, 'utf8');
   built.push(`${file} (${Math.round(Buffer.byteLength(html) / 1024)} КБ)`);
   if (!NOINDEX.has(file)) indexable.push(canonPath);
 }
