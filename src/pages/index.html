@@ -38,8 +38,8 @@ crumbs: no
       </div>
       <dl class="status__list">
         <div class="status__row">
-          <dt>Аварийная служба</dt>
-          <dd><span class="status__value">{{@contacts.dispatcher}}</span> <span class="status__note">круглосуточно</span></dd>
+          <dt>Телефон</dt>
+          <dd><span class="status__value">{{@contacts.reception}}</span> <span class="status__note">приёмная, абонентский отдел</span></dd>
         </div>
         <div class="status__row" data-status-readings>
           <dt>Приём показаний</dt>
@@ -163,9 +163,9 @@ crumbs: no
     <aside>
       <div class="emergency">
         <h3>Авария или отсутствие отопления</h3>
-        <p style="margin-bottom:8px">Аварийно-диспетчерская служба</p>
-        <span class="emergency__phone">{{@contacts.dispatcher}}</span>
-        <p style="margin-top:8px">Круглосуточно, включая выходные и праздничные дни</p>
+        <p style="margin-bottom:8px">Телефон предприятия, в рабочее время</p>
+        <span class="emergency__phone">{{@contacts.reception}}</span>
+        <p style="margin-top:8px">В нерабочее время, а также при угрозе жизни или имуществу — единый номер экстренных служб <strong>112</strong>.</p>
       </div>
 
       <div class="aside-block mt-4">

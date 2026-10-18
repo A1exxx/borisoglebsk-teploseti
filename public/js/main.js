@@ -518,7 +518,7 @@
         document.dispatchEvent(new CustomEvent('site:outages', { detail: { error: true } }));
         document.querySelectorAll('[data-outages]').forEach(function (el) {
           var empty = document.querySelector(el.dataset.emptyTarget || '#outages-empty');
-          if (empty) { empty.hidden = false; empty.querySelector('p').textContent = 'Не удалось загрузить сведения о работах. Телефон аварийно-диспетчерской службы указан в разделе «Контакты».'; }
+          if (empty) { empty.hidden = false; empty.querySelector('p').textContent = 'Не удалось загрузить сведения о работах. Телефон предприятия указан в разделе «Контакты».'; }
           el.hidden = true;
         });
       });
