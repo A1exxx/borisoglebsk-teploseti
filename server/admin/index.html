@@ -81,8 +81,17 @@
     <section id="panel-contracts" data-panel-body hidden>
       <div class="sec-head">
         <h2>Заявки на заключение договора</h2>
-        <a class="btn btn--ghost btn--sm" href="/api/admin/export/contracts.csv">Выгрузить в CSV</a>
+        <span class="sec-actions" style="display:flex;flex-wrap:wrap;gap:8px">
+          <a class="btn btn--primary btn--sm" href="/api/admin/export/contracts-for-billing.csv" data-testid="export-contracts-billing"
+             title="Файл для Excel и для загрузки в программу начислений: «Юридические лица» → «Заявки с сайта». Все заявки, колонки по-русски">Скачать заявки на договор</a>
+          <a class="btn btn--ghost btn--sm" href="/api/admin/export/contracts-for-billing.csv?status=new"
+             title="Только заявки со статусом «Новая»">Только новые</a>
+          <a class="btn btn--ghost btn--sm" href="/api/admin/export/contracts.csv">Выгрузить в CSV</a>
+        </span>
       </div>
+      <p class="hint" style="margin-top:0">«Скачать заявки на договор» — файл для программы начислений: в ней откройте «Юридические лица» →
+        «Заявки с сайта» → «Загрузить заявки с сайта». По каждой заявке на новый договор программа заведёт организацию или гражданина и черновик
+        договора «на согласовании». Повторная загрузка того же файла ничего не задваивает.</p>
       <div data-list="contracts"><p class="text-soft">Загрузка…</p></div>
     </section>
 

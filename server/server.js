@@ -807,6 +807,60 @@ app.get('/api/admin/records/:kind', async (req, res) => {
   res.json({ ok: true, items: await readRecords(kind) });
 });
 
+// маршрут выгрузки заявок для программы — раньше общего «/api/admin/export/:kind.csv»: иначе его имя попало бы в :kind
+/* ---------- Заявки на договор для программы начислений (25.10.2026) ----------
+ * «Скачать заявки на договор»: файл для Excel и для загрузки в «Теплобиллинг» (раздел «Юридические лица» → «Заявки с сайта»).
+ * Колонки — по-русски и в том порядке, который ждёт программа; IP-адрес и приложенные файлы в выгрузку не входят. Отбор
+ * ?status=new — только новые заявки. Ячейки, начинающиеся с = + - @, гасятся апострофом, как в общей выгрузке. */
+const APPLICANT_LABELS = { legal: 'организация', individual: 'гражданин' };
+const PURPOSE_LABELS = {
+  new: 'Заключить новый договор',
+  change: 'Внести изменения в действующий договор',
+  reassign: 'Переоформить договор на нового собственника',
+  terminate: 'Расторгнуть договор',
+};
+const STATUS_LABELS = { new: 'новая', work: 'в работе', done: 'обработана' };
+const CONTRACT_EXPORT_COLUMNS = [
+  ['Номер заявки', (r) => r.ticket],
+  ['Дата заявки', (r) => moscowTime(r.createdAt)],
+  ['Кто подаёт', (r) => APPLICANT_LABELS[r.applicantType] || r.applicantType],
+  ['Цель заявки', (r) => PURPOSE_LABELS[r.purpose] || r.purpose],
+  ['Наименование организации', (r) => (r.applicantType === 'legal' ? r.orgName : '')],
+  ['ИНН', (r) => (r.applicantType === 'legal' ? r.inn : '')],
+  ['ФИО заявителя или контактного лица', (r) => r.fio],
+  ['Адрес объекта', (r) => r.objectAddress],
+  ['Лицевой счёт или номер договора', (r) => r.account],
+  ['Телефон', (r) => r.phone],
+  ['Электронная почта', (r) => r.email],
+  ['Комментарий', (r) => r.comment],
+  ['Статус на сайте', (r) => STATUS_LABELS[r.status || 'new'] || r.status],
+];
+
+function moscowTime(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  // «25.10.2026 10:15» по московскому времени: так дата читается в Excel и в программе
+  const parts = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d);
+  const get = (t) => (parts.find((p) => p.type === t) || {}).value || '';
+  return `${get('day')}.${get('month')}.${get('year')} ${get('hour')}:${get('minute')}`;
+}
+
+function csvCell(v) {
+  const s = String(v ?? '').replace(/\r?\n/g, ' ');
+  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
+app.get('/api/admin/export/contracts-for-billing.csv', async (req, res) => {
+  const onlyNew = req.query.status === 'new';
+  const rows = (await readRecords('contracts', 100000)).filter((r) => !onlyNew || (r.status || 'new') === 'new');
+  const csv = [CONTRACT_EXPORT_COLUMNS.map(([title]) => csvCell(title)).join(';'), ...rows.map((r) => CONTRACT_EXPORT_COLUMNS.map(([, get]) => csvCell(get(r))).join(';'))].join('\r\n');
+  const day = moscowTime(new Date().toISOString()).slice(0, 10).split('.').reverse().join('-');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="zayavki-na-dogovor-${day}${onlyNew ? '-novye' : ''}.csv"`);
+  res.send('\uFEFF' + csv); // BOM — чтобы Excel открыл кириллицу
+});
+
 app.get('/api/admin/export/:kind.csv', async (req, res) => {
   const kind = req.params.kind;
   if (!['readings', 'appeals', 'contracts'].includes(kind)) return res.status(404).end();
