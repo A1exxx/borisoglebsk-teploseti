@@ -83,6 +83,18 @@
       top.append(ticket, badge, sel, date);
       card.appendChild(top);
 
+      // Показания: что с заявкой сделала программа начислений (она отмечает это сама после проверки оператором)
+      if (kind === 'readings' && r.billingStatus) {
+        var billing = document.createElement('p');
+        billing.className = 'badge ' + (r.billingStatus === 'transferred' ? 'badge--ok' : 'badge--warn');
+        billing.style.cssText = 'display:inline-block;margin:0 0 var(--s3);white-space:normal';
+        billing.textContent = (r.billingStatus === 'transferred'
+          ? 'Передано в программу начислений' + (r.billingNote ? ': ' + r.billingNote : '')
+          : 'Отклонено: ' + (r.billingNote || 'причина не указана')) +
+          (r.billingAt ? ' · ' + fmt(r.billingAt) : '');
+        card.appendChild(billing);
+      }
+
       var dl = document.createElement('dl');
       ORDER.forEach(function (key) {
         if (!r[key]) return;
