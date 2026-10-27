@@ -148,3 +148,20 @@ test('новая заявка, пришедшая во время отметок
   const lines = fs.readFileSync(path.join(site.dataDir, 'readings.ndjson'), 'utf8').trim().split('\n');
   assert.equal(lines.length, 2 + 5 + 2);
 });
+
+test('номер заявки не повторяется: занятый номер заменяется другим', async () => {
+  // половина номеров дня уже занята (все чётные): случайный номер попадает в занятый через раз, и без проверки повтор был бы почти сразу
+  const d = new Date();
+  const stamp = `${String(d.getDate()).padStart(2, '0')}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getFullYear()).slice(2)}`;
+  const file = path.join(site.dataDir, 'readings.ndjson');
+  const lines = [];
+  for (let n = 1000; n < 9999; n += 2) lines.push(JSON.stringify({ ticket: `ПУ-${stamp}-${n}`, billingStatus: 'transferred', createdAt: d.toISOString() }));
+  fs.appendFileSync(file, lines.join('\n') + '\n');
+  const tickets = [];
+  for (let i = 0; i < 8; i += 1) tickets.push(await submitReading(site.base, { account: `60000${i}` }));
+  const all = fs.readFileSync(file, 'utf8').trim().split('\n').map((l) => JSON.parse(l).ticket);
+  for (const t of tickets) assert.equal(all.filter((x) => x === t).length, 1, `номер ${t} повторился`);
+  // программа получает новые заявки с теми же номерами, что увидел житель
+  const left = await (await fetch(`${site.base}/api/billing/readings`, { headers: auth })).json();
+  assert.deepEqual(left.items.map((x) => x.ticket).filter((t) => tickets.includes(t)).sort(), [...tickets].sort());
+});

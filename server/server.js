@@ -62,9 +62,18 @@ function withFileLock(kind, fn) {
   return run;
 }
 
+/** Дописать заявку. Номер заявки случайный (4 цифры на день): если такой уже есть в файле, берётся другой —
+ *  программа начислений узнаёт показание по номеру, и два показания с одним номером слились бы в одно.
+ *  Проверка и запись — под одной очередью. Возвращает номер, под которым заявка записана. */
 function appendRecord(kind, record) {
-  const line = JSON.stringify(record) + '\n';
-  return withFileLock(kind, () => fsp.appendFile(path.join(DATA_DIR, `${kind}.ndjson`), line, 'utf8'));
+  return withFileLock(kind, async () => {
+    const file = path.join(DATA_DIR, `${kind}.ndjson`);
+    let raw = '';
+    try { raw = await fsp.readFile(file, 'utf8'); } catch (err) { if (err.code !== 'ENOENT') throw err; }
+    for (let i = 0; i < 50 && raw.includes(`"ticket":${JSON.stringify(record.ticket)}`); i += 1) record.ticket = makeTicket(kind);
+    await fsp.appendFile(file, JSON.stringify(record) + '\n', 'utf8');
+    return record.ticket;
+  });
 }
 
 /** Переписать записи файла заявок: change(row) правит строку на месте и возвращает true, если правил.
@@ -633,9 +642,8 @@ app.post('/api/readings', formLimiter, express.urlencoded({ extended: false }), 
     return respond(req, res, { ok: false, errors, message: 'Проверьте заполнение формы', backTo: '/pokazaniya.html' });
   }
 
-  const ticket = makeTicket('readings');
-  await appendRecord('readings', {
-    ticket, kind: 'readings', createdAt: new Date().toISOString(), status: 'new',
+  const ticket = await appendRecord('readings', {
+    ticket: makeTicket('readings'), kind: 'readings', createdAt: new Date().toISOString(), status: 'new',
     ip: req.ip, ...data,
   });
   respond(req, res, { ok: true, ticket, message: 'Показания приняты и переданы в абонентский отдел' });
@@ -683,9 +691,8 @@ app.post('/api/appeals', formLimiter, upload.array('files', MAX_FILES), async (r
     size: f.size,
   }));
 
-  const ticket = makeTicket('appeals');
-  await appendRecord('appeals', {
-    ticket, kind: 'appeals', createdAt: new Date().toISOString(), status: 'new',
+  const ticket = await appendRecord('appeals', {
+    ticket: makeTicket('appeals'), kind: 'appeals', createdAt: new Date().toISOString(), status: 'new',
     ip: req.ip, ...data, files,
   });
   respond(req, res, { ok: true, ticket, message: 'Обращение зарегистрировано. Срок рассмотрения — 30 дней со дня регистрации' });
@@ -740,9 +747,8 @@ app.post('/api/contracts', formLimiter, upload.array('files', MAX_FILES), async 
     size: f.size,
   }));
 
-  const ticket = makeTicket('contracts');
-  await appendRecord('contracts', {
-    ticket, kind: 'contracts', createdAt: new Date().toISOString(), status: 'new',
+  const ticket = await appendRecord('contracts', {
+    ticket: makeTicket('contracts'), kind: 'contracts', createdAt: new Date().toISOString(), status: 'new',
     ip: req.ip, ...data, files,
   });
   respond(req, res, { ok: true, ticket, message: 'Заявка и документы приняты. Специалист свяжется с вами в течение 3 рабочих дней' });
