@@ -23,7 +23,8 @@ const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 const ROOT = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT, 'public');
-const DATA_DIR = path.join(__dirname, 'data');
+// SITE_DATA_DIR — только для проверочного скрипта (server/test): заявки пишутся во временную папку, а не в рабочую
+const DATA_DIR = process.env.SITE_DATA_DIR ? path.resolve(process.env.SITE_DATA_DIR) : path.join(__dirname, 'data');
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const CONTENT_FILE = path.join(DATA_DIR, 'content.json');
 
@@ -50,9 +51,44 @@ for (const dir of [DATA_DIR, UPLOAD_DIR]) fs.mkdirSync(dir, { recursive: true })
 /* Хранилище                                                           */
 /* ------------------------------------------------------------------ */
 
+/* Запись в файл заявок — по очереди. Смена статуса переписывает файл целиком, и новая заявка,
+ * дописанная между чтением и записью, пропала бы. С программой начислений статусы меняются
+ * сами (раз в 10 минут), поэтому все записи одного файла идут друг за другом. */
+const fileQueues = new Map();
+function withFileLock(kind, fn) {
+  const prev = fileQueues.get(kind) || Promise.resolve();
+  const run = prev.catch(() => undefined).then(fn);
+  fileQueues.set(kind, run.catch(() => undefined));
+  return run;
+}
+
 function appendRecord(kind, record) {
   const line = JSON.stringify(record) + '\n';
-  return fsp.appendFile(path.join(DATA_DIR, `${kind}.ndjson`), line, 'utf8');
+  return withFileLock(kind, () => fsp.appendFile(path.join(DATA_DIR, `${kind}.ndjson`), line, 'utf8'));
+}
+
+/** Переписать записи файла заявок: change(row) правит строку на месте и возвращает true, если правил.
+ *  Пишется во временный файл и подменяется — оборванная запись не портит заявки. Возвращает число правленых. */
+function updateRecords(kind, change) {
+  return withFileLock(kind, async () => {
+    const file = path.join(DATA_DIR, `${kind}.ndjson`);
+    let raw;
+    try { raw = await fsp.readFile(file, 'utf8'); } catch (err) { if (err.code === 'ENOENT') return 0; throw err; }
+    let changed = 0;
+    const out = raw.split('\n').filter(Boolean).map((line) => {
+      try {
+        const row = JSON.parse(line);
+        if (change(row)) { changed += 1; return JSON.stringify(row); }
+        return line;
+      } catch { return line; }
+    }).join('\n') + '\n';
+    if (changed > 0) {
+      const tmp = `${file}.tmp`;
+      await fsp.writeFile(tmp, out, 'utf8');
+      await fsp.rename(tmp, file);
+    }
+    return changed;
+  });
 }
 
 async function readRecords(kind, limit = 500) {
@@ -992,17 +1028,107 @@ app.post('/api/admin/news-image', (req, res) => {
 app.post('/api/admin/status', express.json(), async (req, res) => {
   const { kind, ticket, status } = req.body || {};
   if (!['readings', 'appeals', 'contracts'].includes(kind)) return res.status(400).json({ ok: false });
-  const file = path.join(DATA_DIR, `${kind}.ndjson`);
-  let raw = '';
-  try { raw = await fsp.readFile(file, 'utf8'); } catch { return res.status(404).json({ ok: false }); }
-  const out = raw.split('\n').filter(Boolean).map((line) => {
-    try {
-      const row = JSON.parse(line);
-      if (row.ticket === ticket) row.status = clean(status, 20) || 'new';
-      return JSON.stringify(row);
-    } catch { return line; }
-  }).join('\n') + '\n';
-  await fsp.writeFile(file, out, 'utf8');
+  const next = clean(status, 20) || 'new';
+  // через общую очередь записи: заявка, пришедшая в ту же секунду, не теряется
+  await updateRecords(kind, (row) => {
+    if (row.ticket !== ticket) return false;
+    row.status = next;
+    return true;
+  });
+  res.json({ ok: true });
+});
+
+/* ------------------------------------------------------------------ */
+/* Показания для программы начислений «Теплобиллинг» (27.10.2026)      */
+/* ------------------------------------------------------------------ */
+/* Программа сама раз в 10 минут забирает новые показания и после проверки оператором отмечает, приняты они
+ * или отклонены. Доступ — только по секретному ключу BILLING_TOKEN из .env (заголовок «Authorization: Bearer …»).
+ * Ключ не задан — адресов как будто нет (404). Программе отдаются только поля для лицевого счёта: номер счёта,
+ * адрес, прибор, показания, примечание; телефон, почта, ФИО и IP-адрес не отдаются. */
+const BILLING_TOKEN = (process.env.BILLING_TOKEN || '').trim();
+const BILLING_STATUSES = new Set(['transferred', 'rejected']);
+
+/** Ограничение частоты для программы: ответ JSON, а не переход на страницу формы. */
+function jsonRateLimit({ windowMs, max }) {
+  const hits = new Map();
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, item] of hits) if (now > item.reset) hits.delete(key);
+  }, windowMs).unref();
+  return (req, res, next) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    let item = hits.get(ip);
+    if (!item || now > item.reset) { item = { count: 0, reset: now + windowMs }; hits.set(ip, item); }
+    item.count += 1;
+    if (item.count > max) {
+      res.setHeader('Retry-After', String(Math.ceil((item.reset - now) / 1000)));
+      return res.status(429).json({ ok: false, message: 'Слишком много запросов — повторите позже' });
+    }
+    next();
+  };
+}
+
+const billingLimiter = jsonRateLimit({ windowMs: 10 * 60 * 1000, max: 300 });
+
+function requireBillingToken(req, res, next) {
+  if (!BILLING_TOKEN) return res.status(404).json({ ok: false, message: 'Страница не найдена' });
+  const header = req.get('Authorization') || '';
+  const match = /^Bearer\s+(.+)$/i.exec(header);
+  // сравнение за постоянное время (sameSecret): по скорости ответа ключ не подобрать
+  if (!match || !sameSecret(match[1].trim(), BILLING_TOKEN)) {
+    res.setHeader('WWW-Authenticate', 'Bearer');
+    return res.status(401).json({ ok: false, message: 'Нужен ключ доступа' });
+  }
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+}
+
+/** Только то, что нужно программе начислений. */
+function billingReading(r) {
+  return {
+    ticket: r.ticket,
+    createdAt: r.createdAt,
+    account: r.account || '',
+    meterNumber: r.meterNumber || '',
+    valueHeat: r.valueHeat || '',
+    valueWater: r.valueWater || '',
+    address: r.address || '',
+    comment: r.comment || '',
+  };
+}
+
+// Новые показания: ещё не отмеченные программой; ?since=<дата ISO> — не раньше этого времени. Старые — первыми, не больше 500.
+app.get('/api/billing/readings', billingLimiter, requireBillingToken, async (req, res) => {
+  let since = null;
+  if (req.query.since !== undefined) {
+    since = Date.parse(String(req.query.since));
+    if (Number.isNaN(since)) return res.status(400).json({ ok: false, message: 'since — дата и время в формате ISO' });
+  }
+  const limit = Math.min(Math.max(Number(req.query.limit) || 500, 1), 500);
+  const rows = (await readRecords('readings', Infinity))
+    .filter((r) => r && r.ticket && !r.billingStatus && (since === null || Date.parse(r.createdAt) >= since))
+    .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+    .slice(0, limit)
+    .map(billingReading);
+  res.json({ ok: true, items: rows });
+});
+
+// Отметка программы: показание принято в лицевой счёт или отклонено с причиной — видно в панели, вкладка «Показания»
+app.post('/api/billing/readings/:ticket/status', billingLimiter, requireBillingToken, async (req, res) => {
+  const ticket = clean(req.params.ticket, 40);
+  const { status, note } = req.body || {};
+  if (!BILLING_STATUSES.has(status)) return res.status(400).json({ ok: false, message: 'status — transferred или rejected' });
+  const text = clean(note, 300);
+  if (status === 'rejected' && !text) return res.status(400).json({ ok: false, message: 'Для отклонения нужна причина (note)' });
+  const changed = await updateRecords('readings', (row) => {
+    if (row.ticket !== ticket) return false;
+    row.billingStatus = status;
+    row.billingNote = text;
+    row.billingAt = new Date().toISOString();
+    return true;
+  });
+  if (changed === 0) return res.status(404).json({ ok: false, message: 'Заявка не найдена' });
   res.json({ ok: true });
 });
 
@@ -1013,7 +1139,7 @@ app.post('/api/admin/status', express.json(), async (req, res) => {
 app.use((err, req, res, next) => {
   // Панель управления ждёт ответ в JSON: перенаправление на «Заявка отправлена»
   // там неуместно — человек должен увидеть причину отказа прямо в панели.
-  if (req.path.startsWith('/api/admin/')) {
+  if (req.path.startsWith('/api/admin/') || req.path.startsWith('/api/billing/')) {
     const message = err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE'
       ? 'Файл больше 25 МБ. Уменьшите размер и попробуйте снова.'
       : (err && err.message) || 'Не удалось выполнить действие';
