@@ -59,7 +59,7 @@ function formCheckSecret() {
 const envInt = (name, def) => (/^\d+$/.test(process.env[name] || '') ? Number(process.env[name]) : def);
 const FORM_CHECK_MIN_MS = envInt('FORM_CHECK_MIN_MS', 3000);
 const LIMIT_ACCOUNT_DAY = envInt('FORM_LIMIT_ACCOUNT_DAY', 3); // заявок с показаниями на один лицевой счёт за сутки
-const LIMIT_IP_DAY = envInt('FORM_LIMIT_IP_DAY', 10); // заявок всех видов с одного адреса за сутки
+const LIMIT_IP_DAY = envInt('FORM_LIMIT_IP_DAY', 30); // заявок всех видов с одного адреса за сутки; 30, а не 10: у мобильных операторов много жителей выходят с одного адреса
 const formCheck = createFormCheck({ secret: formCheckSecret(), minMs: FORM_CHECK_MIN_MS });
 
 const MAX_FILE_MB = 10;

@@ -280,7 +280,9 @@ test('лимит на счёт считается по файлу заявок: 
   assert.ok(recent.body.errors.account);
 });
 
-test('лимит на адрес: не больше 10 заявок всех видов за сутки', async () => {
+// по умолчанию 30 заявок с адреса в сутки (общие адреса мобильных операторов); механизм проверяется на 10 — заданных настройкой
+test('лимит на адрес: не больше заданного числа заявок всех видов за сутки (FORM_LIMIT_IP_DAY=10)', async () => {
+  const site = await startServer({ FORM_LIMIT_IP_DAY: '10' });
   const ip = '10.99.0.1';
   for (let i = 0; i < 9; i += 1) {
     const res = await post(site.base, '/api/readings', { ...READING, account: `90000${i}`, ...(await solved(site.base)) }, ip);
