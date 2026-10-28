@@ -44,7 +44,7 @@ description: Онлайн-форма передачи показаний при�
           <div class="field">
             <label for="account">Номер лицевого счёта <span class="req" aria-hidden="true">*</span></label>
             <input class="control" type="text" id="account" name="account" required inputmode="numeric"
-                   autocomplete="off" data-msg-required="Без номера лицевого счёта показания не привязать к помещению">
+                   autocomplete="off" data-validate="account" maxlength="20" data-msg-required="Без номера лицевого счёта показания не привязать к помещению">
             <span class="hint">Указан в верхней части квитанции на оплату</span>
             <span class="err" role="alert"></span>
           </div>
@@ -120,6 +120,20 @@ description: Онлайн-форма передачи показаний при�
             <span class="err" role="alert"></span>
           </div>
         </fieldset>
+
+        <div class="field form-check" data-form-check>
+          <span class="field__label">Проверка, что форму заполняет человек <span class="req" aria-hidden="true">*</span></span>
+          <label for="checkAnswer" class="form-check__question" data-check-question>
+            Пример для проверки не загрузился: в браузере выключен JavaScript или пропала связь.
+            Обновите страницу или передайте показания по телефону абонентского отдела {{@contacts.subscribers}}
+          </label>
+          <input class="control form-check__answer" type="text" id="checkAnswer" name="checkAnswer" inputmode="numeric"
+                 maxlength="3" autocomplete="off" data-validate="check" hidden
+                 data-msg-required="Впишите ответ на пример цифрами, например 7">
+          <input type="hidden" name="checkToken" value="">
+          <span class="hint" data-check-hint hidden>Впишите ответ цифрами. Это защита от рассылок, которые отправляют программы.</span>
+          <span class="err" role="alert"></span>
+        </div>
 
         <div class="check">
           <input type="checkbox" id="consent" name="consent" required

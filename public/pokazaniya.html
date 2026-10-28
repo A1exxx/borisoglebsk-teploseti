@@ -8,7 +8,7 @@
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://borisoglebskteplo.ru/pokazaniya.html">
 <meta name="theme-color" content="#10293f">
-<link rel="stylesheet" href="/css/style.css?v=4cdcdf67">
+<link rel="stylesheet" href="/css/style.css?v=0d656679">
 <link rel="preload" href="/fonts/geist-cyrillic-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="icon" href="/img/favicon-32.png" sizes="32x32" type="image/png">
@@ -164,7 +164,7 @@
           <div class="field">
             <label for="account">Номер лицевого счёта <span class="req" aria-hidden="true">*</span></label>
             <input class="control" type="text" id="account" name="account" required inputmode="numeric"
-                   autocomplete="off" data-msg-required="Без номера лицевого счёта показания не привязать к помещению">
+                   autocomplete="off" data-validate="account" maxlength="20" data-msg-required="Без номера лицевого счёта показания не привязать к помещению">
             <span class="hint">Указан в верхней части квитанции на оплату</span>
             <span class="err" role="alert"></span>
           </div>
@@ -240,6 +240,20 @@
             <span class="err" role="alert"></span>
           </div>
         </fieldset>
+
+        <div class="field form-check" data-form-check>
+          <span class="field__label">Проверка, что форму заполняет человек <span class="req" aria-hidden="true">*</span></span>
+          <label for="checkAnswer" class="form-check__question" data-check-question>
+            Пример для проверки не загрузился: в браузере выключен JavaScript или пропала связь.
+            Обновите страницу или передайте показания по телефону абонентского отдела <span class="todo" data-contact="subscribers" title="Заполнить в панели управления">уточняется</span>
+          </label>
+          <input class="control form-check__answer" type="text" id="checkAnswer" name="checkAnswer" inputmode="numeric"
+                 maxlength="3" autocomplete="off" data-validate="check" hidden
+                 data-msg-required="Впишите ответ на пример цифрами, например 7">
+          <input type="hidden" name="checkToken" value="">
+          <span class="hint" data-check-hint hidden>Впишите ответ цифрами. Это защита от рассылок, которые отправляют программы.</span>
+          <span class="err" role="alert"></span>
+        </div>
 
         <div class="check">
           <input type="checkbox" id="consent" name="consent" required
@@ -390,6 +404,6 @@
   </div>
 </footer>
 
-<script src="/js/main.js?v=7380f333" defer></script>
+<script src="/js/main.js?v=ae850e4c" defer></script>
 </body>
 </html>
