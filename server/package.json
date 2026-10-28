@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test test/billing-api.test.js"
+    "test": "node --test test/billing-api.test.js test/forms-antispam.test.js"
   },
   "engines": {
     "node": ">=18"
