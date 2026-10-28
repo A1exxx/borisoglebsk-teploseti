@@ -143,6 +143,20 @@ description: Форма обращения в МУП БГО ВО «Борисо�
           </div>
         </fieldset>
 
+        <div class="field form-check" data-form-check>
+          <span class="field__label">Проверка, что форму заполняет человек <span class="req" aria-hidden="true">*</span></span>
+          <label for="checkAnswerA" class="form-check__question" data-check-question>
+            Пример для проверки не загрузился: в браузере выключен JavaScript или пропала связь.
+            Обновите страницу или позвоните в приёмную {{@contacts.reception}}
+          </label>
+          <input class="control form-check__answer" type="text" id="checkAnswerA" name="checkAnswer" inputmode="numeric"
+                 maxlength="3" autocomplete="off" data-validate="check" hidden
+                 data-msg-required="Впишите ответ на пример цифрами, например 7">
+          <input type="hidden" name="checkToken" value="">
+          <span class="hint" data-check-hint hidden>Впишите ответ цифрами. Это защита от рассылок, которые отправляют программы.</span>
+          <span class="err" role="alert"></span>
+        </div>
+
         <div class="check">
           <input type="checkbox" id="consentA" name="consent" required
                  data-msg-required="Без согласия на обработку персональных данных обращение не регистрируется">

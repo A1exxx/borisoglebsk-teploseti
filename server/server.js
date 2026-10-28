@@ -25,7 +25,8 @@ const ROOT = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT, 'public');
 // SITE_DATA_DIR — только для проверочного скрипта (server/test): заявки пишутся во временную папку, а не в рабочую
 const DATA_DIR = process.env.SITE_DATA_DIR ? path.resolve(process.env.SITE_DATA_DIR) : path.join(__dirname, 'data');
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
+// при проверке и вложения заявок пишутся во временную папку, рядом с заявками
+const UPLOAD_DIR = process.env.SITE_DATA_DIR ? path.join(DATA_DIR, 'uploads') : path.join(__dirname, 'uploads');
 const CONTENT_FILE = path.join(DATA_DIR, 'content.json');
 
 function generateDevPassword() {
@@ -40,6 +41,26 @@ function generateDevPassword() {
 
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || generateDevPassword();
+
+/* Проверка «я человек» в формах (см. form-check.js). Секрет подписи — FORM_CHECK_SECRET из .env.
+ * Не задан — берётся случайный на это включение: выданные примеры перестают приниматься после перезапуска. */
+const { createFormCheck } = require('./form-check');
+
+function formCheckSecret() {
+  const s = (process.env.FORM_CHECK_SECRET || '').trim();
+  if (s) return s;
+  console.warn('[forms] FORM_CHECK_SECRET не задан — ключ проверки форм сгенерирован на это включение.\n'
+    + '[forms] Примеры, выданные до перезапуска, после него не примутся. Для боевого сервера задайте ключ в .env.');
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// FORM_CHECK_MIN_MS и FORM_LIMIT_* — для проверочного скрипта (server/test) и на случай,
+// если лимиты понадобится поправить без правки кода. Обычно не задаются.
+const envInt = (name, def) => (/^\d+$/.test(process.env[name] || '') ? Number(process.env[name]) : def);
+const FORM_CHECK_MIN_MS = envInt('FORM_CHECK_MIN_MS', 3000);
+const LIMIT_ACCOUNT_DAY = envInt('FORM_LIMIT_ACCOUNT_DAY', 3); // заявок с показаниями на один лицевой счёт за сутки
+const LIMIT_IP_DAY = envInt('FORM_LIMIT_IP_DAY', 30); // заявок всех видов с одного адреса за сутки; 30, а не 10: у мобильных операторов много жителей выходят с одного адреса
+const formCheck = createFormCheck({ secret: formCheckSecret(), minMs: FORM_CHECK_MIN_MS });
 
 const MAX_FILE_MB = 10;
 const MAX_FILES = 10;
@@ -65,11 +86,15 @@ function withFileLock(kind, fn) {
 /** Дописать заявку. Номер заявки случайный (4 цифры на день): если такой уже есть в файле, берётся другой —
  *  программа начислений узнаёт показание по номеру, и два показания с одним номером слились бы в одно.
  *  Проверка и запись — под одной очередью. Возвращает номер, под которым заявка записана. */
-function appendRecord(kind, record) {
+function appendRecord(kind, record, guard) {
   return withFileLock(kind, async () => {
     const file = path.join(DATA_DIR, `${kind}.ndjson`);
     let raw = '';
     try { raw = await fsp.readFile(file, 'utf8'); } catch (err) { if (err.code !== 'ENOENT') throw err; }
+    // guard — проверка лимита по уже записанным заявкам; под той же очередью, чтобы две
+    // одновременные отправки не прошли лимит обе. Вернула ошибку — заявка не пишется.
+    const refused = guard ? guard(parseLines(raw)) : null;
+    if (refused) throw Object.assign(new Error(refused.message), { code: 'FORM_LIMIT', field: refused.field });
     for (let i = 0; i < 50 && raw.includes(`"ticket":${JSON.stringify(record.ticket)}`); i += 1) record.ticket = makeTicket(kind);
     await fsp.appendFile(file, JSON.stringify(record) + '\n', 'utf8');
     return record.ticket;
@@ -98,6 +123,15 @@ function updateRecords(kind, change) {
     }
     return changed;
   });
+}
+
+function parseLines(raw) {
+  const rows = [];
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue;
+    try { rows.push(JSON.parse(line)); } catch { /* повреждённая строка — пропускаем */ }
+  }
+  return rows;
 }
 
 async function readRecords(kind, limit = 500) {
@@ -247,9 +281,9 @@ function safeBackTo(req) {
 }
 
 /** Один ответ для JS-клиента и для браузера без JS. */
-function respond(req, res, { ok, ticket, message, errors, backTo }) {
+function respond(req, res, { ok, ticket, message, errors, backTo, check, status }) {
   if (wantsJSON(req)) {
-    return res.status(ok ? 200 : 400).json({ ok, ticket, message, errors });
+    return res.status(ok ? 200 : (status || 400)).json({ ok, ticket, message, errors, check });
   }
   if (ok) {
     // Текст благодарности страница берёт по виду заявки, а не из адреса:
@@ -603,21 +637,113 @@ app.use(express.static(PUBLIC_DIR, {
 
 const formLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 25 });
 
+/* ---------- Защита форм от спама ----------
+ * 1) скрытое поле-ловушка website: человек его не видит и не заполняет;
+ * 2) пример на сложение от сервера с подписанным одноразовым токеном (form-check.js), живёт 30 минут;
+ * 3) форма, отправленная быстрее 3 секунд после получения примера, — бот;
+ * 4) лимиты за сутки: заявок с одного адреса и показаний на один лицевой счёт.
+ * Боту (ловушка, слишком быстро) отвечаем «принято», но ничего не пишем — чтобы он не подстраивался.
+ * Счётчики лимитов — по самим файлам заявок за последние 24 часа, поэтому перезапуск их не обнуляет. */
+
+const DAY_MS = 24 * 3600 * 1000;
+const FORM_KINDS = ['readings', 'appeals', 'contracts'];
+
+const CHECK_MESSAGES = {
+  missing: 'Пример для проверки не загрузился. Обновите страницу и решите пример.',
+  invalid: 'Пример не принят. Решите новый пример — он над этим полем.',
+  used: 'Пример не принят. Решите новый пример — он над этим полем.',
+  expired: 'Пример устарел: с его получения прошло больше 30 минут. Решите новый пример — он над этим полем.',
+  wrong: 'Ответ неверный. Посчитайте новый пример — он над этим полем.',
+};
+const CHECK_FAILED = 'Решите пример внизу формы и отправьте ещё раз.';
+const IP_LIMIT = 'С этого подключения за сутки отправлено слишком много заявок. Повторите завтра или позвоните нам — телефоны в разделе «Контакты».';
+
+function publicCheck() {
+  const { question, token } = formCheck.issue();
+  return { question, token };
+}
+
+/** Новый пример для формы: страница берёт его при открытии и после каждой отправки. */
+app.get('/api/form-check', rateLimit({ windowMs: 10 * 60 * 1000, max: 120 }), (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(publicCheck());
+});
+
+/** Бот: заполнена ловушка или форма отправлена быстрее, чем человек успел бы её заполнить. */
+function looksLikeBot(b) {
+  if (clean(b.website)) return true;
+  const token = clean(b.checkToken, 1000);
+  const issued = formCheck.parse(token);
+  if (issued && Date.now() - issued.t < FORM_CHECK_MIN_MS) {
+    formCheck.verify(token, b.checkAnswer); // гасим токен
+    return true;
+  }
+  return false;
+}
+
+/** Ответ на пример не вписан — ошибка у поля вместе с остальными; пример при этом не тратится. */
+function requireCheckAnswer(b, errors) {
+  if (!clean(b.checkAnswer, 10)) errors.checkAnswer = 'Впишите ответ на пример — одно число';
+}
+
+/** Проверить ответ на пример. null — всё верно; иначе ошибка у поля и новый пример. */
+function humanCheckFailed(b) {
+  const result = formCheck.verify(clean(b.checkToken, 1000), clean(b.checkAnswer, 10));
+  if (result.ok) return null;
+  return { errors: { checkAnswer: CHECK_MESSAGES[result.reason] || CHECK_MESSAGES.invalid }, check: publicCheck() };
+}
+
+/** Сколько заявок всех видов пришло с этого адреса за последние сутки. */
+async function ipCountToday(ip) {
+  const since = Date.now() - DAY_MS;
+  let n = 0;
+  for (const kind of FORM_KINDS) {
+    for (const row of await readRecords(kind, Infinity)) {
+      if (row.ip === ip && Date.parse(row.createdAt) >= since) n += 1;
+    }
+  }
+  return n;
+}
+
+/** Общие проверки перед записью: пример и лимит по адресу. null — можно писать. */
+async function formGuard(req, b) {
+  const failed = humanCheckFailed(b);
+  if (failed) return { message: CHECK_FAILED, ...failed };
+  if (await ipCountToday(req.ip) >= LIMIT_IP_DAY) return { message: IP_LIMIT };
+  return null;
+}
+
+/** Отклонённая заявка с файлами: загруженное не храним. */
+function dropUploads(req) {
+  if (req._uploadDir) fsp.rm(req._uploadDir, { recursive: true, force: true }).catch(() => {});
+}
+
+const RE_ACCOUNT = /^\d{5,12}$/;
+// Показание: цифры с табло (ведущие нули допустимы), не больше трёх знаков после запятой, не больше 999 999.
+const RE_READING = /^\d{1,9}([.,]\d{1,3})?$/;
+const READING_MAX = 999999;
+
+function readingError(value) {
+  if (!RE_READING.test(value)) return 'Показание вводится цифрами, не больше трёх цифр после запятой, например 1245,300';
+  if (Number(value.replace(',', '.')) > READING_MAX) return 'Показание не может быть больше 999 999 — проверьте, нет ли лишней цифры';
+  return null;
+}
+
 /* ---------- Показания приборов учёта ---------- */
 
 // upload.none() разбирает multipart без файлов: страховка на случай, если
 // форму отправят как FormData.
-app.post('/api/readings', formLimiter, express.urlencoded({ extended: false }), upload.none(), async (req, res) => {
+app.post('/api/readings', formLimiter, express.urlencoded({ extended: false }), upload.none(), async (req, res, next) => {
   const b = req.body || {};
-  if (clean(b.website)) return respond(req, res, { ok: true, ticket: makeTicket('readings'), message: 'Показания приняты' }); // honeypot
+  if (looksLikeBot(b)) return respond(req, res, { ok: true, ticket: makeTicket('readings'), message: 'Показания приняты' });
 
   const data = {
-    account: clean(b.account, 30),
+    account: clean(b.account, 30).replace(/\s+/g, ''),
     fio: clean(b.fio, 150),
     address: clean(b.address, 250),
     meterNumber: clean(b.meterNumber, 40),
-    valueHeat: clean(b.valueHeat, 20),
-    valueWater: clean(b.valueWater, 20),
+    valueHeat: clean(b.valueHeat, 20).replace(/\s+/g, ''),
+    valueWater: clean(b.valueWater, 20).replace(/\s+/g, ''),
     phone: clean(b.phone, 25),
     email: clean(b.email, 100),
     comment: cleanMultiline(b.comment, 1000),
@@ -626,34 +752,53 @@ app.post('/api/readings', formLimiter, express.urlencoded({ extended: false }), 
 
   const errors = {};
   if (!data.account) errors.account = 'Укажите номер лицевого счёта';
+  else if (!RE_ACCOUNT.test(data.account)) errors.account = 'Номер лицевого счёта — только цифры, от 5 до 12. Он напечатан в верхней части квитанции';
   if (!data.address) errors.address = 'Укажите адрес помещения';
   if (!data.valueHeat && !data.valueWater) errors.valueHeat = 'Введите хотя бы одно показание';
   for (const key of ['valueHeat', 'valueWater']) {
-    if (data[key] && !/^\d{1,9}([.,]\d{1,4})?$/.test(data[key])) {
-      errors[key] = 'Показание вводится цифрами, например 1245,300';
-    }
+    const bad = data[key] && readingError(data[key]);
+    if (bad) errors[key] = bad;
   }
   if (!data.phone) errors.phone = 'Укажите телефон для обратной связи';
   else if (!RE_PHONE.test(data.phone)) errors.phone = 'Проверьте номер телефона';
   if (data.email && !RE_EMAIL.test(data.email)) errors.email = 'Проверьте адрес электронной почты';
   if (!data.consent) errors.consent = 'Без согласия на обработку персональных данных заявка не принимается';
+  requireCheckAnswer(b, errors);
 
   if (Object.keys(errors).length) {
     return respond(req, res, { ok: false, errors, message: 'Проверьте заполнение формы', backTo: '/pokazaniya.html' });
   }
 
-  const ticket = await appendRecord('readings', {
-    ticket: makeTicket('readings'), kind: 'readings', createdAt: new Date().toISOString(), status: 'new',
-    ip: req.ip, ...data,
-  });
-  respond(req, res, { ok: true, ticket, message: 'Показания приняты и переданы в абонентский отдел' });
+  try {
+    const refused = await formGuard(req, b);
+    if (refused) return respond(req, res, { ok: false, ...refused, backTo: '/pokazaniya.html' });
+
+    const since = Date.now() - DAY_MS;
+    const ticket = await appendRecord('readings', {
+      ticket: makeTicket('readings'), kind: 'readings', createdAt: new Date().toISOString(), status: 'new',
+      ip: req.ip, ...data,
+    }, (rows) => {
+      const sameAccount = rows.filter((r) => String(r.account || '').replace(/\s+/g, '') === data.account
+        && Date.parse(r.createdAt) >= since).length;
+      return sameAccount >= LIMIT_ACCOUNT_DAY
+        ? { field: 'account', message: `По этому лицевому счёту за сутки показания передавали уже ${LIMIT_ACCOUNT_DAY} раза. Чтобы исправить их, позвоните в абонентский отдел` }
+        : null;
+    });
+    respond(req, res, { ok: true, ticket, message: 'Показания приняты и переданы в абонентский отдел' });
+  } catch (err) {
+    if (err.code !== 'FORM_LIMIT') return next(err);
+    respond(req, res, { ok: false, errors: { [err.field]: err.message }, message: err.message, backTo: '/pokazaniya.html' });
+  }
 });
 
 /* ---------- Обращения граждан (59-ФЗ) ---------- */
 
-app.post('/api/appeals', formLimiter, upload.array('files', MAX_FILES), async (req, res) => {
+app.post('/api/appeals', formLimiter, upload.array('files', MAX_FILES), async (req, res, next) => {
   const b = req.body || {};
-  if (clean(b.website)) return respond(req, res, { ok: true, ticket: makeTicket('appeals'), message: 'Обращение принято' });
+  if (looksLikeBot(b)) {
+    dropUploads(req);
+    return respond(req, res, { ok: true, ticket: makeTicket('appeals'), message: 'Обращение принято' });
+  }
 
   const data = {
     topic: clean(b.topic, 80),
@@ -680,29 +825,44 @@ app.post('/api/appeals', formLimiter, upload.array('files', MAX_FILES), async (r
   }
   if (data.phone && !RE_PHONE.test(data.phone)) errors.phone = 'Проверьте номер телефона';
   if (!data.consent) errors.consent = 'Без согласия на обработку персональных данных обращение не регистрируется';
+  requireCheckAnswer(b, errors);
 
   if (Object.keys(errors).length) {
+    dropUploads(req);
     return respond(req, res, { ok: false, errors, message: 'Проверьте заполнение формы', backTo: '/obrashcheniya.html' });
   }
 
-  const files = (req.files || []).map((f) => ({
-    name: f._displayName || f.originalname,
-    stored: path.relative(UPLOAD_DIR, f.path).replace(/\\/g, '/'),
-    size: f.size,
-  }));
+  try {
+    const refused = await formGuard(req, b);
+    if (refused) {
+      dropUploads(req);
+      return respond(req, res, { ok: false, ...refused, backTo: '/obrashcheniya.html' });
+    }
 
-  const ticket = await appendRecord('appeals', {
-    ticket: makeTicket('appeals'), kind: 'appeals', createdAt: new Date().toISOString(), status: 'new',
-    ip: req.ip, ...data, files,
-  });
-  respond(req, res, { ok: true, ticket, message: 'Обращение зарегистрировано. Срок рассмотрения — 30 дней со дня регистрации' });
+    const files = (req.files || []).map((f) => ({
+      name: f._displayName || f.originalname,
+      stored: path.relative(UPLOAD_DIR, f.path).replace(/\\/g, '/'),
+      size: f.size,
+    }));
+
+    const ticket = await appendRecord('appeals', {
+      ticket: makeTicket('appeals'), kind: 'appeals', createdAt: new Date().toISOString(), status: 'new',
+      ip: req.ip, ...data, files,
+    });
+    respond(req, res, { ok: true, ticket, message: 'Обращение зарегистрировано. Срок рассмотрения — 30 дней со дня регистрации' });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /* ---------- Заявка на заключение договора ---------- */
 
-app.post('/api/contracts', formLimiter, upload.array('files', MAX_FILES), async (req, res) => {
+app.post('/api/contracts', formLimiter, upload.array('files', MAX_FILES), async (req, res, next) => {
   const b = req.body || {};
-  if (clean(b.website)) return respond(req, res, { ok: true, ticket: makeTicket('contracts'), message: 'Заявка принята' });
+  if (looksLikeBot(b)) {
+    dropUploads(req);
+    return respond(req, res, { ok: true, ticket: makeTicket('contracts'), message: 'Заявка принята' });
+  }
 
   const data = {
     applicantType: clean(b.applicantType, 20) || 'individual',
@@ -734,24 +894,35 @@ app.post('/api/contracts', formLimiter, upload.array('files', MAX_FILES), async 
   }
   if (!data.consent) errors.consent = 'Без согласия на обработку персональных данных заявка не принимается';
   if (!req.files || req.files.length === 0) errors.files = 'Приложите копии документов по списку выше';
+  requireCheckAnswer(b, errors);
 
   if (Object.keys(errors).length) {
     // Загруженные файлы отклонённой заявки не храним.
-    if (req._uploadDir) fsp.rm(req._uploadDir, { recursive: true, force: true }).catch(() => {});
+    dropUploads(req);
     return respond(req, res, { ok: false, errors, message: 'Проверьте заполнение формы', backTo: '/dogovor.html' });
   }
 
-  const files = (req.files || []).map((f) => ({
-    name: f._displayName || f.originalname,
-    stored: path.relative(UPLOAD_DIR, f.path).replace(/\\/g, '/'),
-    size: f.size,
-  }));
+  try {
+    const refused = await formGuard(req, b);
+    if (refused) {
+      dropUploads(req);
+      return respond(req, res, { ok: false, ...refused, backTo: '/dogovor.html' });
+    }
 
-  const ticket = await appendRecord('contracts', {
-    ticket: makeTicket('contracts'), kind: 'contracts', createdAt: new Date().toISOString(), status: 'new',
-    ip: req.ip, ...data, files,
-  });
-  respond(req, res, { ok: true, ticket, message: 'Заявка и документы приняты. Специалист свяжется с вами в течение 3 рабочих дней' });
+    const files = (req.files || []).map((f) => ({
+      name: f._displayName || f.originalname,
+      stored: path.relative(UPLOAD_DIR, f.path).replace(/\\/g, '/'),
+      size: f.size,
+    }));
+
+    const ticket = await appendRecord('contracts', {
+      ticket: makeTicket('contracts'), kind: 'contracts', createdAt: new Date().toISOString(), status: 'new',
+      ip: req.ip, ...data, files,
+    });
+    respond(req, res, { ok: true, ticket, message: 'Заявка и документы приняты. Специалист свяжется с вами в течение 3 рабочих дней' });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /* ---------- Публичный контент ---------- */

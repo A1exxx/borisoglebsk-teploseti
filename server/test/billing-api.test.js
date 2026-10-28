@@ -32,7 +32,9 @@ async function startServer(extraEnv) {
   const port = await freePort();
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'site-billing-'));
   const child = spawn(process.execPath, [path.join(__dirname, '..', 'server.js')], {
-    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', SITE_DATA_DIR: dataDir, ADMIN_USER: 'admin', ADMIN_PASS: 'proverka', BILLING_TOKEN: '', ...extraEnv },
+    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', SITE_DATA_DIR: dataDir, ADMIN_USER: 'admin', ADMIN_PASS: 'proverka', BILLING_TOKEN: '',
+      // защита форм здесь не проверяется (она — в forms-antispam.test.js): без паузы 3 с и без суточного лимита на адрес
+      FORM_CHECK_MIN_MS: '0', FORM_LIMIT_IP_DAY: '1000', ...extraEnv },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let log = '';
@@ -68,8 +70,16 @@ after(() => {
   }
 });
 
+/** Пример «я человек» с сервера и верный ответ на него. */
+async function solvedCheck(base) {
+  const { question, token } = await (await fetch(`${base}/api/form-check`)).json();
+  const [, a, b] = /(\d+) \+ (\d+)/.exec(question);
+  return { checkToken: token, checkAnswer: String(Number(a) + Number(b)) };
+}
+
 async function submitReading(base, fields) {
   const body = new URLSearchParams({
+    ...(await solvedCheck(base)),
     account: '100200', fio: 'Иванов Иван Иванович', address: 'ул. Проверочная, д. 1, кв. 5', meterNumber: 'ГВ-0001',
     valueHeat: '', valueWater: '123,450', phone: '+7 900 000-00-00', email: 'proverka@example.ru', comment: 'проверка', consent: 'on',
     ...fields,

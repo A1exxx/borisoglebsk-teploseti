@@ -111,7 +111,10 @@
     required: 'Заполните это поле',
     phone: 'Введите номер в формате +7 (999) 123-45-67',
     email: 'Проверьте адрес: в нём должны быть знак @ и точка',
-    reading: 'Показание вводится цифрами, например 1245,300',
+    reading: 'Показание вводится цифрами, не больше трёх цифр после запятой, например 1245,300',
+    readingMax: 'Показание не может быть больше 999 999 — проверьте, нет ли лишней цифры',
+    account: 'Номер лицевого счёта — только цифры, от 5 до 12. Он напечатан в верхней части квитанции',
+    check: 'Впишите ответ на пример цифрами, например 7',
     inn: 'ИНН состоит из 10 цифр (организация) или 12 (индивидуальный предприниматель)',
     short: 'Слишком короткий текст — опишите подробнее'
   };
@@ -143,7 +146,13 @@
     if (value) {
       if (type === 'phone' && !/^\+?[\d\s().-]{10,20}$/.test(value)) { fieldError(input, MESSAGES.phone); return false; }
       if (type === 'email' && !/^[^@\s]+@[^@\s.]+\.[^@\s]{2,}$/.test(value)) { fieldError(input, MESSAGES.email); return false; }
-      if (type === 'reading' && !/^\d{1,9}([.,]\d{1,4})?$/.test(value)) { fieldError(input, MESSAGES.reading); return false; }
+      if (type === 'reading') {
+        var compact = value.replace(/\s+/g, '');
+        if (!/^\d{1,9}([.,]\d{1,3})?$/.test(compact)) { fieldError(input, MESSAGES.reading); return false; }
+        if (Number(compact.replace(',', '.')) > 999999) { fieldError(input, MESSAGES.readingMax); return false; }
+      }
+      if (type === 'account' && !/^\d{5,12}$/.test(value.replace(/\s+/g, ''))) { fieldError(input, MESSAGES.account); return false; }
+      if (type === 'check' && !/^\d{1,3}$/.test(value)) { fieldError(input, MESSAGES.check); return false; }
       if (type === 'inn' && !/^(\d{10}|\d{12})$/.test(value)) { fieldError(input, MESSAGES.inn); return false; }
       if (input.minLength > 0 && value.length < input.minLength) { fieldError(input, MESSAGES.short); return false; }
     }
@@ -182,6 +191,35 @@
     note.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
+  /* Проверка «я человек»: сервер выдаёт пример на сложение и одноразовый токен.
+     Пока пример не пришёл (нет JS, нет связи), в форме остаётся текст
+     «пример не загрузился» с телефоном — его кладёт сама страница. */
+  function checkBox(form) { return form.querySelector('[data-form-check]'); }
+
+  function applyCheck(box, data) {
+    if (!box || !data || !data.question || !data.token) return;
+    var answer = box.querySelector('[name="checkAnswer"]');
+    box.querySelector('[data-check-question]').textContent = data.question;
+    box.querySelector('[name="checkToken"]').value = data.token;
+    box.setAttribute('data-check-ready', 'true');
+    answer.hidden = false;
+    answer.required = true;
+    answer.value = '';
+    var hint = box.querySelector('[data-check-hint]');
+    if (hint) hint.hidden = false;
+  }
+
+  function loadCheck(form) {
+    var box = checkBox(form);
+    if (!box || !window.fetch || root.getAttribute('data-demo') === '1') return;
+    fetch(BASE + '/api/form-check', { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) { applyCheck(box, data); })
+      .catch(function () { /* остаётся текст «пример не загрузился» с телефоном */ });
+  }
+
+  document.querySelectorAll('form[data-ajax]').forEach(loadCheck);
+
   document.querySelectorAll('form[data-ajax]').forEach(function (form) {
     form.addEventListener('submit', function (e) {
       if (root.getAttribute('data-demo') === '1') {
@@ -204,6 +242,13 @@
       if (!window.fetch || !window.FormData) return; // старый браузер — обычная отправка
 
       e.preventDefault();
+      var box = checkBox(form);
+      if (box && box.getAttribute('data-check-ready') !== 'true') {
+        setNote(form, 'err', 'Пример для проверки не загрузился',
+          'Пробуем загрузить его ещё раз. Если пример так и не появится внизу формы, позвоните нам — телефоны в разделе «Контакты».');
+        loadCheck(form);
+        return;
+      }
       var btn = form.querySelector('[type="submit"]');
       var label = btn ? btn.innerHTML : '';
       if (btn) {
@@ -231,6 +276,9 @@
           if (data.ok) {
             var target = form.dataset.successTarget && document.querySelector(form.dataset.successTarget);
             if (target) {
+              // красная плашка от прошлой неудачной попытки (например, неверный пример) больше не нужна
+              var oldNote = form.parentElement && form.parentElement.querySelector('.formnote');
+              if (oldNote) oldNote.setAttribute('data-show', 'false');
               target.hidden = false;
               var num = target.querySelector('[data-ticket]');
               if (num) num.textContent = data.ticket || '';
@@ -241,8 +289,10 @@
             } else {
               setNote(form, 'ok', 'Отправлено. Номер заявки ' + (data.ticket || ''), data.message || '');
               form.reset();
+              loadCheck(form); // пример одноразовый — для следующей заявки нужен новый
             }
           } else {
+            if (data.check) applyCheck(checkBox(form), data.check);
             if (data.errors) {
               var first = null;
               Object.keys(data.errors).forEach(function (name) {
@@ -583,6 +633,8 @@
     'Файл больше 10 МБ. Уменьшите размер и попробуйте снова.',
     'Можно приложить не более 10 файлов.',
     'Не удалось загрузить файл',
+    'Решите пример внизу формы и отправьте ещё раз.',
+    'С этого подключения за сутки отправлено слишком много заявок. Повторите завтра или позвоните нам — телефоны в разделе «Контакты».',
   ];
   document.addEventListener('DOMContentLoaded', function () {
     var params = new URLSearchParams(window.location.search);
