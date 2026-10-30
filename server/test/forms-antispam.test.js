@@ -289,7 +289,7 @@ test('лимит на адрес: не больше заданного числ�
     assert.equal(res.status, 200, JSON.stringify(res.body));
   }
   const appeal = await post(site.base, '/api/appeals', {
-    topic: 'Качество отопления', fio: 'Петров Пётр Петрович', email: 'proverka@example.ru', replyBy: 'email',
+    fio: 'Петров Пётр Петрович', email: 'proverka@example.ru', replyBy: 'email',
     message: 'В квартире холодно уже третий день подряд, прошу проверить.', consent: 'on', ...(await solved(site.base)),
   }, ip);
   assert.equal(appeal.status, 200, JSON.stringify(appeal.body));

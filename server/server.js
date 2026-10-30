@@ -816,7 +816,6 @@ app.post('/api/appeals', formLimiter, upload.array('files', MAX_FILES), async (r
   // 59-ФЗ, ст. 7: обязательны ФИО, адрес для ответа, суть обращения.
   if (!data.fio) errors.fio = 'Укажите фамилию, имя и отчество — этого требует статья 7 Федерального закона № 59-ФЗ';
   if (!data.message || data.message.length < 20) errors.message = 'Опишите суть обращения — не менее 20 символов';
-  if (!data.topic) errors.topic = 'Выберите тему обращения';
   if (data.replyBy === 'email') {
     if (!data.email) errors.email = 'Укажите адрес электронной почты для ответа';
     else if (!RE_EMAIL.test(data.email)) errors.email = 'Проверьте адрес электронной почты';
