@@ -327,6 +327,70 @@ test('проверка полей показаний: лицевой счёт, �
   assert.equal(readingsInFile(site.dataDir).at(-1).account, '700101');
 });
 
+/* ---------------- Показания организаций (06.11.2026) ---------------- */
+
+const ORG_READING = {
+  payerKind: 'org', contractNo: '15-Т/2026', orgName: 'ООО «Проверка»', fio: '', objects: 'Магазин, ул. Проверочная, д. 5 — показание 1245,300',
+  volumeHeat: '', phone: '+7 900 000-00-02', email: '', comment: '', consent: 'on',
+};
+
+test('показания организации: принимаются без лицевого счёта и адреса; поля жителя не записываются', async () => {
+  const res = await post(site.base, '/api/readings', { ...ORG_READING, account: '', address: '', valueWater: '', ...(await solved(site.base)) });
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.match(res.body.ticket, /^ПУ-\d{6}-\d{4}$/);
+  const row = readingsInFile(site.dataDir).at(-1);
+  assert.equal(row.payerKind, 'org');
+  assert.equal(row.contractNo, '15-Т/2026');
+  assert.equal(row.orgName, 'ООО «Проверка»');
+  assert.equal(row.objects, 'Магазин, ул. Проверочная, д. 5 — показание 1245,300');
+  assert.equal(row.account, undefined);
+  assert.equal(row.valueWater, undefined);
+  // житель без выбора — как раньше
+  const person = await post(site.base, '/api/readings', { ...READING, account: '700500', ...(await solved(site.base)) });
+  assert.equal(person.status, 200, JSON.stringify(person.body));
+  assert.equal(readingsInFile(site.dataDir).at(-1).payerKind, 'person');
+});
+
+test('проверка полей организации: договор, наименование, объекты, объём — понятные ошибки у полей', async () => {
+  const cases = [
+    [{ contractNo: '' }, 'contractNo', /Укажите номер договора/],
+    [{ contractNo: 'Договор' }, 'contractNo', /как в договоре/],
+    [{ contractNo: '15<script>' }, 'contractNo', /как в договоре/],
+    [{ orgName: '' }, 'orgName', /наименование организации/],
+    [{ objects: '' }, 'objects', /Перечислите объекты/],
+    [{ objects: 'abc' }, 'objects', /Слишком коротко/],
+    [{ volumeHeat: '12,3456' }, 'volumeHeat', /не больше трёх цифр после запятой/],
+    [{ volumeHeat: '-1' }, 'volumeHeat', /цифрами/],
+    [{ volumeHeat: '1000000' }, 'volumeHeat', /больше 999 999 Гкал/],
+    [{ phone: '' }, 'phone', /телефон/],
+    [{ consent: '' }, 'consent', /согласия/],
+  ];
+  for (const [fields, field, message] of cases) {
+    const res = await post(site.base, '/api/readings', { ...ORG_READING, contractNo: '15-П/2026', ...fields, ...(await solved(site.base)) });
+    assert.equal(res.status, 400, JSON.stringify(fields));
+    assert.match(res.body.errors[field] || '', message, JSON.stringify(fields));
+    // у организации не спрашивают лицевой счёт и адрес
+    assert.equal(res.body.errors.account, undefined);
+    assert.equal(res.body.errors.address, undefined);
+  }
+  for (const fields of [{ contractNo: '№ 7 от 01.01.2026', volumeHeat: '0' }, { contractNo: '15-Р/2026', volumeHeat: '999999' }]) {
+    const res = await post(site.base, '/api/readings', { ...ORG_READING, ...fields, ...(await solved(site.base)) });
+    assert.equal(res.status, 200, `${JSON.stringify(fields)}: ${JSON.stringify(res.body)}`);
+  }
+});
+
+test('лимит на договор: не больше 3 заявок за сутки; регистр и пробелы по краям не важны', async () => {
+  for (const contractNo of ['21-Л/2026', '21-л/2026', ' 21-Л/2026 ']) {
+    const res = await post(site.base, '/api/readings', { ...ORG_READING, contractNo, ...(await solved(site.base)) });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+  }
+  const fourth = await post(site.base, '/api/readings', { ...ORG_READING, contractNo: '21-Л/2026', ...(await solved(site.base)) });
+  assert.equal(fourth.status, 400);
+  assert.match(fourth.body.errors.contractNo, /По этому договору за сутки показания передавали уже 3 раза/);
+  const other = await post(site.base, '/api/readings', { ...ORG_READING, contractNo: '22-Л/2026', ...(await solved(site.base)) });
+  assert.equal(other.status, 200);
+});
+
 /* ---------------- Обращения и договор — тот же механизм ---------------- */
 
 test('обращения: без примера — ошибка, с верным ответом — принимаются', async () => {

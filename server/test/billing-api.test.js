@@ -115,9 +115,13 @@ test('новые показания отдаются без телефона, п
   for (const secret of ['+7 900', 'proverka@example.ru', 'Иванов', '127.0.0.1']) assert.ok(!text.includes(secret), `в ответе есть «${secret}»`);
   const { items } = JSON.parse(text);
   assert.deepEqual(items.map((i) => i.ticket), [first, second]);
-  assert.deepEqual(Object.keys(items[0]).sort(), ['account', 'address', 'comment', 'createdAt', 'meterNumber', 'ticket', 'valueHeat', 'valueWater']);
+  // 06.11.2026: у жителя поля организации есть, но пустые; payerKind — person
+  assert.deepEqual(Object.keys(items[0]).sort(), ['account', 'address', 'comment', 'contractNo', 'createdAt', 'meterNumber', 'objects', 'orgName', 'payerKind',
+    'ticket', 'valueHeat', 'valueWater', 'volumeHeat']);
   assert.equal(items[0].valueWater, '123,450');
   assert.equal(items[0].account, '100200');
+  assert.equal(items[0].payerKind, 'person');
+  assert.deepEqual([items[0].contractNo, items[0].orgName, items[0].objects, items[0].volumeHeat], ['', '', '', '']);
 
   // since — не раньше времени второго показания
   const since = await (await fetch(`${site.base}/api/billing/readings?since=${encodeURIComponent(items[1].createdAt)}`, { headers: auth })).json();
@@ -174,4 +178,34 @@ test('номер заявки не повторяется: занятый ном
   // программа получает новые заявки с теми же номерами, что увидел житель
   const left = await (await fetch(`${site.base}/api/billing/readings`, { headers: auth })).json();
   assert.deepEqual(left.items.map((x) => x.ticket).filter((t) => tickets.includes(t)).sort(), [...tickets].sort());
+});
+
+// 06.11.2026: показания организации — номер договора, наименование, объекты и объём; контактное лицо, телефон и почта программе не уходят
+test('показания организации: программа получает договор, наименование, объекты и объём — без контактного лица, телефона и почты', async () => {
+  const objects = 'Магазин, ул. Проверочная, д. 5 — прибор № 11, показание 1245,300\nСклад — прибор № 12, показание 512,050';
+  const ticket = await submitReading(site.base, {
+    payerKind: 'org', account: '', address: '', meterNumber: '', valueWater: '', valueHeat: '',
+    contractNo: '15-Т/2026', orgName: 'ООО «Проверка»', fio: 'Сидоров Сидор Сидорович', objects, volumeHeat: '12,5',
+  });
+  const { items } = await (await fetch(`${site.base}/api/billing/readings`, { headers: auth })).json();
+  const item = items.find((i) => i.ticket === ticket);
+  assert.ok(item, 'заявка организации есть в выдаче');
+  assert.deepEqual(item, {
+    ticket, createdAt: item.createdAt, payerKind: 'org', account: '', meterNumber: '', valueHeat: '', valueWater: '', address: '', comment: 'проверка',
+    contractNo: '15-Т/2026', orgName: 'ООО «Проверка»', objects, volumeHeat: '12,5',
+  });
+  const text = JSON.stringify(items);
+  for (const secret of ['Сидоров', '+7 900', 'proverka@example.ru']) assert.ok(!text.includes(secret), `в ответе есть «${secret}»`);
+
+  // отметка программы ставится так же, как у жителя
+  const mark = await fetch(`${site.base}/api/billing/readings/${encodeURIComponent(ticket)}/status`, {
+    method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'transferred', note: 'договор № 15-Т/2026, объём 12,5 Гкал, месяц 11.2026' }),
+  });
+  assert.equal(mark.status, 200);
+  const admin = await (await fetch(`${site.base}/api/admin/records/readings`, { headers: { Authorization: `Basic ${Buffer.from('admin:proverka').toString('base64')}` } })).json();
+  const row = admin.items.find((r) => r.ticket === ticket);
+  assert.equal(row.payerKind, 'org');
+  assert.equal(row.fio, 'Сидоров Сидор Сидорович');
+  assert.equal(row.billingStatus, 'transferred');
 });

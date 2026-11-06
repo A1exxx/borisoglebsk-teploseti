@@ -113,6 +113,8 @@
     email: 'Проверьте адрес: в нём должны быть знак @ и точка',
     reading: 'Показание вводится цифрами, не больше трёх цифр после запятой, например 1245,300',
     readingMax: 'Показание не может быть больше 999 999 — проверьте, нет ли лишней цифры',
+    volume: 'Объём вводится цифрами, не больше трёх цифр после запятой, например 12,345',
+    volumeMax: 'Объём не может быть больше 999 999 Гкал — проверьте, нет ли лишней цифры',
     account: 'Номер лицевого счёта — только цифры, от 5 до 12. Он напечатан в верхней части квитанции',
     check: 'Впишите ответ на пример цифрами, например 7',
     inn: 'ИНН состоит из 10 цифр (организация) или 12 (индивидуальный предприниматель)',
@@ -132,6 +134,8 @@
   }
 
   function validateField(input) {
+    // скрытая часть формы (другой вариант «физлицо / организация») не отправляется — и не проверяется (06.11.2026)
+    if (input.disabled) { fieldError(input, null); return true; }
     var value = (input.value || '').trim();
     var type = input.dataset.validate || '';
 
@@ -150,6 +154,11 @@
         var compact = value.replace(/\s+/g, '');
         if (!/^\d{1,9}([.,]\d{1,3})?$/.test(compact)) { fieldError(input, MESSAGES.reading); return false; }
         if (Number(compact.replace(',', '.')) > 999999) { fieldError(input, MESSAGES.readingMax); return false; }
+      }
+      if (type === 'volume') {
+        var vol = value.replace(/\s+/g, '');
+        if (!/^\d{1,9}([.,]\d{1,3})?$/.test(vol)) { fieldError(input, MESSAGES.volume); return false; }
+        if (Number(vol.replace(',', '.')) > 999999) { fieldError(input, MESSAGES.volumeMax); return false; }
       }
       if (type === 'account' && !/^\d{5,12}$/.test(value.replace(/\s+/g, ''))) { fieldError(input, MESSAGES.account); return false; }
       if (type === 'check' && !/^\d{1,3}$/.test(value)) { fieldError(input, MESSAGES.check); return false; }
