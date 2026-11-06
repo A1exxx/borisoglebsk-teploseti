@@ -729,27 +729,58 @@ function readingError(value) {
   return null;
 }
 
-/* ---------- Показания приборов учёта ---------- */
+/* ---------- Показания приборов учёта ----------
+ * 06.11.2026: показания передают и организации (юрлицо, ИП, управляющая организация) — по просьбе абонентского отдела: у них нет
+ * лицевого счёта и адреса квартиры, есть номер договора и несколько объектов. «Кто передаёт показания»: person — житель (форма прежняя),
+ * org — организация: номер договора, наименование, объекты с показаниями свободным текстом, необязательный объём тепла за месяц в Гкал.
+ * Защита та же (пример, пауза, лимиты); суточный лимит организации считается по номеру договора. */
 
-// upload.none() разбирает multipart без файлов: страховка на случай, если
-// форму отправят как FormData.
-app.post('/api/readings', formLimiter, express.urlencoded({ extended: false }), upload.none(), async (req, res, next) => {
-  const b = req.body || {};
-  if (looksLikeBot(b)) return respond(req, res, { ok: true, ticket: makeTicket('readings'), message: 'Показания приняты' });
+// Номер договора — как напечатан в договоре: буквы, цифры, пробел, дефис, косая черта, точка, «№»; хотя бы одна цифра.
+const RE_CONTRACT = /^[0-9A-Za-zА-Яа-яЁё№][0-9A-Za-zА-Яа-яЁё\s\-/.№]{0,39}$/;
 
+function volumeError(value) {
+  if (!RE_READING.test(value)) return 'Объём вводится цифрами, не больше трёх цифр после запятой, например 12,345';
+  if (Number(value.replace(',', '.')) > READING_MAX) return 'Объём не может быть больше 999 999 Гкал — проверьте, нет ли лишней цифры';
+  return null;
+}
+
+/** Номер договора для сравнения: без пробелов по краям и без учёта регистра. */
+const contractKey = (value) => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+/** Поля и ошибки заявки организации. */
+function orgReading(b) {
   const data = {
+    payerKind: 'org',
+    contractNo: clean(b.contractNo, 40).replace(/\s+/g, ' '),
+    orgName: clean(b.orgName, 200),
+    objects: cleanMultiline(b.objects, 2000),
+    volumeHeat: clean(b.volumeHeat, 20).replace(/\s+/g, ''),
+    fio: clean(b.fio, 150),
+  };
+  const errors = {};
+  if (!data.contractNo) errors.contractNo = 'Укажите номер договора теплоснабжения';
+  else if (!RE_CONTRACT.test(data.contractNo) || !/\d/.test(data.contractNo)) {
+    errors.contractNo = 'Номер договора — как в договоре, например 15-Т/2026: буквы, цифры, дефис и косая черта';
+  }
+  if (!data.orgName) errors.orgName = 'Укажите наименование организации или ИП';
+  if (!data.objects) errors.objects = 'Перечислите объекты и показания по каждому';
+  else if (data.objects.length < 5) errors.objects = 'Слишком коротко — укажите объект и показание прибора учёта';
+  const bad = data.volumeHeat && volumeError(data.volumeHeat);
+  if (bad) errors.volumeHeat = bad;
+  return { data, errors };
+}
+
+/** Поля и ошибки заявки жителя — как было до 06.11.2026. */
+function personReading(b) {
+  const data = {
+    payerKind: 'person',
     account: clean(b.account, 30).replace(/\s+/g, ''),
     fio: clean(b.fio, 150),
     address: clean(b.address, 250),
     meterNumber: clean(b.meterNumber, 40),
     valueHeat: clean(b.valueHeat, 20).replace(/\s+/g, ''),
     valueWater: clean(b.valueWater, 20).replace(/\s+/g, ''),
-    phone: clean(b.phone, 25),
-    email: clean(b.email, 100),
-    comment: cleanMultiline(b.comment, 1000),
-    consent: b.consent === 'on' || b.consent === 'true' || b.consent === '1',
   };
-
   const errors = {};
   if (!data.account) errors.account = 'Укажите номер лицевого счёта';
   else if (!RE_ACCOUNT.test(data.account)) errors.account = 'Номер лицевого счёта — только цифры, от 5 до 12. Он напечатан в верхней части квитанции';
@@ -759,6 +790,25 @@ app.post('/api/readings', formLimiter, express.urlencoded({ extended: false }), 
     const bad = data[key] && readingError(data[key]);
     if (bad) errors[key] = bad;
   }
+  return { data, errors };
+}
+
+// upload.none() разбирает multipart без файлов: страховка на случай, если
+// форму отправят как FormData.
+app.post('/api/readings', formLimiter, express.urlencoded({ extended: false }), upload.none(), async (req, res, next) => {
+  const b = req.body || {};
+  if (looksLikeBot(b)) return respond(req, res, { ok: true, ticket: makeTicket('readings'), message: 'Показания приняты' });
+
+  const isOrg = clean(b.payerKind, 10) === 'org'; // всё остальное — житель, как было
+  const { data: own, errors } = isOrg ? orgReading(b) : personReading(b);
+  const data = {
+    ...own,
+    phone: clean(b.phone, 25),
+    email: clean(b.email, 100),
+    comment: cleanMultiline(b.comment, 1000),
+    consent: b.consent === 'on' || b.consent === 'true' || b.consent === '1',
+  };
+
   if (!data.phone) errors.phone = 'Укажите телефон для обратной связи';
   else if (!RE_PHONE.test(data.phone)) errors.phone = 'Проверьте номер телефона';
   if (data.email && !RE_EMAIL.test(data.email)) errors.email = 'Проверьте адрес электронной почты';
@@ -778,6 +828,14 @@ app.post('/api/readings', formLimiter, express.urlencoded({ extended: false }), 
       ticket: makeTicket('readings'), kind: 'readings', createdAt: new Date().toISOString(), status: 'new',
       ip: req.ip, ...data,
     }, (rows) => {
+      if (isOrg) {
+        const key = contractKey(data.contractNo);
+        const sameContract = rows.filter((r) => r.payerKind === 'org' && contractKey(r.contractNo) === key
+          && Date.parse(r.createdAt) >= since).length;
+        return sameContract >= LIMIT_ACCOUNT_DAY
+          ? { field: 'contractNo', message: `По этому договору за сутки показания передавали уже ${LIMIT_ACCOUNT_DAY} раза. Чтобы исправить их, позвоните в абонентский отдел` }
+          : null;
+      }
       const sameAccount = rows.filter((r) => String(r.account || '').replace(/\s+/g, '') === data.account
         && Date.parse(r.createdAt) >= since).length;
       return sameAccount >= LIMIT_ACCOUNT_DAY
@@ -1260,17 +1318,24 @@ function requireBillingToken(req, res, next) {
   next();
 }
 
-/** Только то, что нужно программе начислений. */
+/** Только то, что нужно программе начислений. 06.11.2026: у организации — номер договора, наименование, объекты и объём за месяц
+ *  (payerKind 'org'); у жителя эти поля пустые. Телефон, почта, ФИО и контактное лицо по-прежнему не отдаются. */
 function billingReading(r) {
+  const org = r.payerKind === 'org';
   return {
     ticket: r.ticket,
     createdAt: r.createdAt,
+    payerKind: org ? 'org' : 'person',
     account: r.account || '',
     meterNumber: r.meterNumber || '',
     valueHeat: r.valueHeat || '',
     valueWater: r.valueWater || '',
     address: r.address || '',
     comment: r.comment || '',
+    contractNo: org ? r.contractNo || '' : '',
+    orgName: org ? r.orgName || '' : '',
+    objects: org ? r.objects || '' : '',
+    volumeHeat: org ? r.volumeHeat || '' : '',
   };
 }
 

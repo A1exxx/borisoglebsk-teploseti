@@ -12,11 +12,16 @@
     valueHeat: 'Тепловая энергия, Гкал', valueWater: 'Горячая вода, м³', phone: 'Телефон',
     email: 'Почта', comment: 'Примечание', topic: 'Тема', message: 'Текст обращения',
     replyBy: 'Способ ответа', postAddress: 'Почтовый адрес', applicantType: 'Тип заявителя',
-    purpose: 'Что требуется', orgName: 'Организация', inn: 'ИНН', objectAddress: 'Адрес объекта'
+    purpose: 'Что требуется', orgName: 'Организация', inn: 'ИНН', objectAddress: 'Адрес объекта',
+    // показания организаций (06.11.2026): кто передал, номер договора, объекты и объём за месяц
+    payerKind: 'Кто передаёт', contractNo: 'Номер договора', objects: 'Объекты и показания',
+    volumeHeat: 'Объём тепла за месяц, Гкал'
   };
-  var ORDER = ['account','fio','orgName','inn','applicantType','purpose','address','objectAddress',
-               'meterNumber','valueHeat','valueWater','topic','message','replyBy','postAddress',
+  var ORDER = ['payerKind','contractNo','account','fio','orgName','inn','applicantType','purpose','address','objectAddress',
+               'objects','volumeHeat','meterNumber','valueHeat','valueWater','topic','message','replyBy','postAddress',
                'phone','email','comment'];
+  // значения, которые в заявке записаны кодом, — человеческими словами
+  var VALUES = { payerKind: { person: 'Физическое лицо', org: 'Организация или ИП' } };
 
   function esc(s) { return String(s == null ? '' : s); }
 
@@ -99,7 +104,8 @@
       ORDER.forEach(function (key) {
         if (!r[key]) return;
         var dt = document.createElement('dt'); dt.textContent = LABELS[key] || key;
-        var dd = document.createElement('dd'); dd.textContent = esc(r[key]);
+        var dd = document.createElement('dd'); dd.textContent = esc((VALUES[key] && VALUES[key][r[key]]) || r[key]);
+        if (key === 'objects') dd.style.whiteSpace = 'pre-line';
         dl.append(dt, dd);
       });
       card.appendChild(dl);

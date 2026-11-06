@@ -8,7 +8,7 @@
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://borisoglebskteplo.ru/pokazaniya.html">
 <meta name="theme-color" content="#10293f">
-<link rel="stylesheet" href="/css/style.css?v=0d656679">
+<link rel="stylesheet" href="/css/style.css?v=6ab14ca2">
 <link rel="preload" href="/fonts/geist-cyrillic-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="icon" href="/img/favicon-32.png" sizes="32x32" type="image/png">
@@ -158,12 +158,34 @@
       <form class="form" id="form" method="post" action="/api/readings" data-ajax data-success-target="#reading-success" novalidate>
         <p class="hint" style="margin-bottom:24px">Поля со звёздочкой <span class="req">*</span> обязательны.</p>
 
+        <!-- 06.11.2026: показания передают и организации — у них номер договора и несколько объектов вместо лицевого счёта и адреса.
+             Выбор — как «Кто подаёт заявку» на странице договора; скрытая часть формы не отправляется и не проверяется. -->
         <fieldset>
+          <legend>Кто передаёт показания</legend>
+          <div class="radio-cards radio-cards--2" data-switch-group="payerKind">
+            <label class="radio-card">
+              <input type="radio" name="payerKind" value="person" checked>
+              <span>
+                <strong>Физическое лицо</strong>
+                <small>Собственник или наниматель жилого помещения</small>
+              </span>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="payerKind" value="org">
+              <span>
+                <strong>Организация или ИП</strong>
+                <small>Юридическое лицо, предприниматель, управляющая организация</small>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset data-switch-case="person">
           <legend>Помещение</legend>
 
           <div class="field">
             <label for="account">Номер лицевого счёта <span class="req" aria-hidden="true">*</span></label>
-            <input class="control" type="text" id="account" name="account" required inputmode="numeric"
+            <input class="control" type="text" id="account" name="account" required data-req-when="on" inputmode="numeric"
                    autocomplete="off" data-validate="account" maxlength="20" data-msg-required="Без номера лицевого счёта показания не привязать к помещению">
             <span class="hint">Указан в верхней части квитанции на оплату</span>
             <span class="err" role="alert"></span>
@@ -171,7 +193,7 @@
 
           <div class="field">
             <label for="address">Адрес помещения <span class="req" aria-hidden="true">*</span></label>
-            <input class="control" type="text" id="address" name="address" required autocomplete="street-address"
+            <input class="control" type="text" id="address" name="address" required data-req-when="on" autocomplete="street-address"
                    placeholder="ул. Свободы, д. 12, кв. 45">
             <span class="err" role="alert"></span>
           </div>
@@ -191,7 +213,7 @@
           </div>
         </fieldset>
 
-        <fieldset>
+        <fieldset data-switch-case="person">
           <legend>Показания</legend>
           <span class="hint">Заполните то, что относится к вашему прибору учёта. Достаточно одного значения.</span>
 
@@ -211,6 +233,53 @@
               <span class="hint">Показание счётчика горячего водоснабжения</span>
               <span class="err" role="alert"></span>
             </div>
+          </div>
+        </fieldset>
+
+        <fieldset data-switch-case="org" hidden>
+          <legend>Организация</legend>
+
+          <div class="field">
+            <label for="contractNo">Номер договора <span class="req" aria-hidden="true">*</span></label>
+            <input class="control" type="text" id="contractNo" name="contractNo" data-req-when="on" maxlength="40"
+                   autocomplete="off" placeholder="15-Т/2026" data-msg-required="Без номера договора показания не привязать к объектам">
+            <span class="hint">Как напечатан в договоре теплоснабжения и в счетах</span>
+            <span class="err" role="alert"></span>
+          </div>
+
+          <div class="field">
+            <label for="orgName">Наименование организации <span class="req" aria-hidden="true">*</span></label>
+            <input class="control" type="text" id="orgName" name="orgName" data-req-when="on" maxlength="200"
+                   autocomplete="organization" placeholder="ООО «Ромашка» или ИП Иванов И. И.">
+            <span class="err" role="alert"></span>
+          </div>
+
+          <div class="field">
+            <label for="fioOrg">Контактное лицо</label>
+            <input class="control" type="text" id="fioOrg" name="fio" autocomplete="name" maxlength="150">
+            <span class="hint">Кто передаёт показания и ответит на вопросы по ним</span>
+            <span class="err" role="alert"></span>
+          </div>
+        </fieldset>
+
+        <fieldset data-switch-case="org" hidden>
+          <legend>Объекты и показания</legend>
+
+          <div class="field">
+            <label for="objects">Объекты <span class="req" aria-hidden="true">*</span></label>
+            <textarea class="control" id="objects" name="objects" rows="5" data-req-when="on" maxlength="2000"
+                      style="min-height:140px" data-msg-required="Перечислите объекты и показания по каждому"
+                      placeholder="Магазин, ул. Свободы, д. 5 — прибор № 1234567, показание 1245,300 Гкал&#10;Склад, ул. Народная, д. 2 — прибор № 7654321, показание 512,050 Гкал"></textarea>
+            <span class="hint">По каждому объекту: название или адрес, номер прибора учёта и показание. Каждый объект — с новой строки</span>
+            <span class="err" role="alert"></span>
+          </div>
+
+          <div class="field">
+            <label for="volumeHeat">Объём тепла за месяц, Гкал</label>
+            <input class="control" type="text" id="volumeHeat" name="volumeHeat" inputmode="decimal" maxlength="20"
+                   data-validate="volume" placeholder="12,345" autocomplete="off">
+            <span class="hint">Необязательно. Если уже посчитали расход за месяц по всем объектам договора — впишите его</span>
+            <span class="err" role="alert"></span>
           </div>
         </fieldset>
 
@@ -297,7 +366,7 @@
           <div class="contact-card__body">
             <span class="contact-card__label">Электронной почтой</span>
             <span class="contact-card__value" style="font-size:1.05rem"><a href="mailto:borisoglebskteplo@govvrn.ru" data-contact="email">borisoglebskteplo@<wbr>govvrn<wbr>.ru</a></span>
-            <span class="contact-card__note">Укажите лицевой счёт и адрес</span>
+            <span class="contact-card__note">Укажите лицевой счёт и адрес, организациям — номер договора</span>
           </div>
         </div>
         <div class="contact-card">
@@ -317,6 +386,13 @@
           <summary style="padding-inline:0">Где найти номер лицевого счёта</summary>
           <div class="acc__body" style="padding-inline:0">
             <p class="mb-0">В верхней части квитанции на оплату тепловой энергии, рядом с адресом помещения. Если квитанции нет — уточните в абонентском отделе, назвав адрес.</p>
+          </div>
+        </details>
+
+        <details class="acc" style="border:0">
+          <summary style="padding-inline:0">Организациям: что писать в «Объектах»</summary>
+          <div class="acc__body" style="padding-inline:0">
+            <p class="mb-0">Выберите «Организация или ИП», укажите номер договора и перечислите объекты по договору: название или адрес, номер прибора учёта и показание — каждый объект с новой строки. Если объём тепла за месяц уже посчитан, впишите его в отдельное поле.</p>
           </div>
         </details>
 
@@ -404,6 +480,6 @@
   </div>
 </footer>
 
-<script src="/js/main.js?v=ae850e4c" defer></script>
+<script src="/js/main.js?v=b4a73ce5" defer></script>
 </body>
 </html>
