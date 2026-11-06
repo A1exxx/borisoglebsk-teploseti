@@ -747,6 +747,35 @@ function volumeError(value) {
 /** Номер договора для сравнения: без пробелов по краям и без учёта регистра. */
 const contractKey = (value) => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
 
+/* 07.11.2026: организация выбирает, за какой месяц объём, — «ГГГГ-ММ». Можно текущий и три прошлых месяца (по Москве), будущий нельзя.
+ * Без поля (старая страница из кэша браузера) — месяц по умолчанию, как на странице: до 10-го числа включительно — прошлый, позже — текущий. */
+const RE_MONTH = /^(\d{4})-(0[1-9]|1[0-2])$/;
+const MONTHS_BACK = 3;
+
+function monthIndex(text) {
+  const m = RE_MONTH.exec(text);
+  return m ? Number(m[1]) * 12 + Number(m[2]) - 1 : null;
+}
+
+function monthText(index) {
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
+}
+
+/** Месяц показаний организации по умолчанию: до 10-го числа включительно — прошлый, позже — текущий. */
+function defaultReadingMonth(today = moscowToday()) {
+  const current = monthIndex(today.slice(0, 7));
+  return monthText(Number(today.slice(8, 10)) <= 10 ? current - 1 : current);
+}
+
+function readingMonthError(value, today = moscowToday()) {
+  const index = monthIndex(value);
+  if (index === null) return 'Выберите месяц из списка';
+  const current = monthIndex(today.slice(0, 7));
+  if (index > current) return 'Нельзя передать объём за месяц, который ещё не наступил';
+  if (index < current - MONTHS_BACK) return 'Месяц слишком давний — за него показания передаются через абонентский отдел';
+  return null;
+}
+
 /** Поля и ошибки заявки организации. */
 function orgReading(b) {
   const data = {
@@ -755,9 +784,12 @@ function orgReading(b) {
     orgName: clean(b.orgName, 200),
     objects: cleanMultiline(b.objects, 2000),
     volumeHeat: clean(b.volumeHeat, 20).replace(/\s+/g, ''),
+    month: clean(b.month, 10) || defaultReadingMonth(),
     fio: clean(b.fio, 150),
   };
   const errors = {};
+  const badMonth = readingMonthError(data.month);
+  if (badMonth) errors.month = badMonth;
   if (!data.contractNo) errors.contractNo = 'Укажите номер договора теплоснабжения';
   else if (!RE_CONTRACT.test(data.contractNo) || !/\d/.test(data.contractNo)) {
     errors.contractNo = 'Номер договора — как в договоре, например 15-Т/2026: буквы, цифры, дефис и косая черта';
@@ -770,7 +802,10 @@ function orgReading(b) {
   return { data, errors };
 }
 
-/** Поля и ошибки заявки жителя — как было до 06.11.2026. */
+/** Поля и ошибки заявки жителя.
+ *  07.11.2026: житель передаёт только горячую воду — отопление в квартире считается по общедомовому счётчику или нормативу, квартирный
+ *  счётчик тепла в расчёте не участвует. Поле «Тепловая энергия» убрано со страницы; если его пришлёт старая страница из кэша браузера —
+ *  не отказываем и не сохраняем: заявка без воды всё равно не принимается. */
 function personReading(b) {
   const data = {
     payerKind: 'person',
@@ -778,17 +813,16 @@ function personReading(b) {
     fio: clean(b.fio, 150),
     address: clean(b.address, 250),
     meterNumber: clean(b.meterNumber, 40),
-    valueHeat: clean(b.valueHeat, 20).replace(/\s+/g, ''),
     valueWater: clean(b.valueWater, 20).replace(/\s+/g, ''),
   };
   const errors = {};
   if (!data.account) errors.account = 'Укажите номер лицевого счёта';
   else if (!RE_ACCOUNT.test(data.account)) errors.account = 'Номер лицевого счёта — только цифры, от 5 до 12. Он напечатан в верхней части квитанции';
   if (!data.address) errors.address = 'Укажите адрес помещения';
-  if (!data.valueHeat && !data.valueWater) errors.valueHeat = 'Введите хотя бы одно показание';
-  for (const key of ['valueHeat', 'valueWater']) {
-    const bad = data[key] && readingError(data[key]);
-    if (bad) errors[key] = bad;
+  if (!data.valueWater) errors.valueWater = 'Укажите показание счётчика горячей воды';
+  else {
+    const bad = readingError(data.valueWater);
+    if (bad) errors.valueWater = bad;
   }
   return { data, errors };
 }
@@ -1318,7 +1352,8 @@ function requireBillingToken(req, res, next) {
   next();
 }
 
-/** Только то, что нужно программе начислений. 06.11.2026: у организации — номер договора, наименование, объекты и объём за месяц
+/** Только то, что нужно программе начислений. 07.11.2026: у организации ещё month — за какой месяц объём, «ГГГГ-ММ» (у жителя и в старых
+ *  заявках пусто — программа возьмёт рабочий месяц). 06.11.2026: у организации — номер договора, наименование, объекты и объём за месяц
  *  (payerKind 'org'); у жителя эти поля пустые. Телефон, почта, ФИО и контактное лицо по-прежнему не отдаются. */
 function billingReading(r) {
   const org = r.payerKind === 'org';
@@ -1336,6 +1371,7 @@ function billingReading(r) {
     orgName: org ? r.orgName || '' : '',
     objects: org ? r.objects || '' : '',
     volumeHeat: org ? r.volumeHeat || '' : '',
+    month: org ? r.month || '' : '',
   };
 }
 

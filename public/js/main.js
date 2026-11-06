@@ -392,6 +392,26 @@
     sync();
   });
 
+  /* ---------- 5а. «За какой месяц» у организации (07.11.2026) ----------
+     Текущий и два прошлых месяца; по умолчанию до 10-го числа включительно — прошлый, позже — текущий.
+     Сервер принимает те же месяцы и ещё один раньше — на случай, если страницу открыли в конце месяца. */
+
+  var MONTH_NAMES = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+  document.querySelectorAll('select[data-month-select]').forEach(function (select) {
+    var now = new Date();
+    var current = now.getFullYear() * 12 + now.getMonth();
+    var preferred = now.getDate() <= 10 ? current - 1 : current;
+    for (var i = current; i >= current - 2; i -= 1) {
+      var year = Math.floor(i / 12);
+      var month = i % 12;
+      var option = document.createElement('option');
+      option.value = year + '-' + (month < 9 ? '0' : '') + (month + 1);
+      option.textContent = MONTH_NAMES[month].charAt(0).toUpperCase() + MONTH_NAMES[month].slice(1) + ' ' + year;
+      if (i === preferred) option.selected = true;
+      select.appendChild(option);
+    }
+  });
+
   /* ---------- 6. Живой контент: отключения, новости, объявление ---------- */
 
   function fmtDate(iso) {

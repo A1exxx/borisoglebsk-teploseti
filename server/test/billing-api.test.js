@@ -106,7 +106,7 @@ test('без ключа и с неверным ключом — 401', async () =
 
 test('новые показания отдаются без телефона, почты, ФИО и IP; отметка программы убирает показание из выдачи и видна в панели', async () => {
   const first = await submitReading(site.base, {});
-  const second = await submitReading(site.base, { account: '100201', valueWater: '', valueHeat: '5,5' });
+  const second = await submitReading(site.base, { account: '100201', valueWater: '5,5' });
 
   const res = await fetch(`${site.base}/api/billing/readings`, { headers: auth });
   assert.equal(res.status, 200);
@@ -116,12 +116,14 @@ test('новые показания отдаются без телефона, п
   const { items } = JSON.parse(text);
   assert.deepEqual(items.map((i) => i.ticket), [first, second]);
   // 06.11.2026: у жителя поля организации есть, но пустые; payerKind — person
-  assert.deepEqual(Object.keys(items[0]).sort(), ['account', 'address', 'comment', 'contractNo', 'createdAt', 'meterNumber', 'objects', 'orgName', 'payerKind',
-    'ticket', 'valueHeat', 'valueWater', 'volumeHeat']);
+  assert.deepEqual(Object.keys(items[0]).sort(), ['account', 'address', 'comment', 'contractNo', 'createdAt', 'meterNumber', 'month', 'objects', 'orgName',
+    'payerKind', 'ticket', 'valueHeat', 'valueWater', 'volumeHeat']);
   assert.equal(items[0].valueWater, '123,450');
   assert.equal(items[0].account, '100200');
   assert.equal(items[0].payerKind, 'person');
-  assert.deepEqual([items[0].contractNo, items[0].orgName, items[0].objects, items[0].volumeHeat], ['', '', '', '']);
+  assert.deepEqual([items[0].contractNo, items[0].orgName, items[0].objects, items[0].volumeHeat, items[0].month], ['', '', '', '', '']);
+  // 07.11.2026: тепло от жителя больше не сохраняется — программа получает пустое поле
+  assert.equal(items[0].valueHeat, '');
 
   // since — не раньше времени второго показания
   const since = await (await fetch(`${site.base}/api/billing/readings?since=${encodeURIComponent(items[1].createdAt)}`, { headers: auth })).json();
@@ -181,18 +183,21 @@ test('номер заявки не повторяется: занятый ном
 });
 
 // 06.11.2026: показания организации — номер договора, наименование, объекты и объём; контактное лицо, телефон и почта программе не уходят
-test('показания организации: программа получает договор, наименование, объекты и объём — без контактного лица, телефона и почты', async () => {
+// текущий месяц по Москве — его сервер принимает всегда
+const MONTH = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 7);
+
+test('показания организации: программа получает договор, наименование, объекты, объём и месяц — без контактного лица, телефона и почты', async () => {
   const objects = 'Магазин, ул. Проверочная, д. 5 — прибор № 11, показание 1245,300\nСклад — прибор № 12, показание 512,050';
   const ticket = await submitReading(site.base, {
     payerKind: 'org', account: '', address: '', meterNumber: '', valueWater: '', valueHeat: '',
-    contractNo: '15-Т/2026', orgName: 'ООО «Проверка»', fio: 'Сидоров Сидор Сидорович', objects, volumeHeat: '12,5',
+    contractNo: '15-Т/2026', orgName: 'ООО «Проверка»', fio: 'Сидоров Сидор Сидорович', objects, volumeHeat: '12,5', month: MONTH,
   });
   const { items } = await (await fetch(`${site.base}/api/billing/readings`, { headers: auth })).json();
   const item = items.find((i) => i.ticket === ticket);
   assert.ok(item, 'заявка организации есть в выдаче');
   assert.deepEqual(item, {
     ticket, createdAt: item.createdAt, payerKind: 'org', account: '', meterNumber: '', valueHeat: '', valueWater: '', address: '', comment: 'проверка',
-    contractNo: '15-Т/2026', orgName: 'ООО «Проверка»', objects, volumeHeat: '12,5',
+    contractNo: '15-Т/2026', orgName: 'ООО «Проверка»', objects, volumeHeat: '12,5', month: MONTH,
   });
   const text = JSON.stringify(items);
   for (const secret of ['Сидоров', '+7 900', 'proverka@example.ru']) assert.ok(!text.includes(secret), `в ответе есть «${secret}»`);

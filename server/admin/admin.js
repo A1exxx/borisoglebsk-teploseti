@@ -15,15 +15,24 @@
     purpose: 'Что требуется', orgName: 'Организация', inn: 'ИНН', objectAddress: 'Адрес объекта',
     // показания организаций (06.11.2026): кто передал, номер договора, объекты и объём за месяц
     payerKind: 'Кто передаёт', contractNo: 'Номер договора', objects: 'Объекты и показания',
-    volumeHeat: 'Объём тепла за месяц, Гкал'
+    volumeHeat: 'Объём тепла за месяц, Гкал',
+    // 07.11.2026: за какой месяц организация передала объём
+    month: 'За какой месяц'
   };
   var ORDER = ['payerKind','contractNo','account','fio','orgName','inn','applicantType','purpose','address','objectAddress',
-               'objects','volumeHeat','meterNumber','valueHeat','valueWater','topic','message','replyBy','postAddress',
+               'objects','month','volumeHeat','meterNumber','valueHeat','valueWater','topic','message','replyBy','postAddress',
                'phone','email','comment'];
   // значения, которые в заявке записаны кодом, — человеческими словами
   var VALUES = { payerKind: { person: 'Физическое лицо', org: 'Организация или ИП' } };
 
   function esc(s) { return String(s == null ? '' : s); }
+
+  // «2026-10» → «октябрь 2026»
+  var MONTH_NAMES = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+  function monthLabel(value) {
+    var m = /^(\d{4})-(\d{2})$/.exec(String(value || ''));
+    return m && MONTH_NAMES[Number(m[2]) - 1] ? MONTH_NAMES[Number(m[2]) - 1] + ' ' + m[1] : value;
+  }
 
   function fmt(iso) {
     var d = new Date(iso);
@@ -104,7 +113,8 @@
       ORDER.forEach(function (key) {
         if (!r[key]) return;
         var dt = document.createElement('dt'); dt.textContent = LABELS[key] || key;
-        var dd = document.createElement('dd'); dd.textContent = esc((VALUES[key] && VALUES[key][r[key]]) || r[key]);
+        var dd = document.createElement('dd');
+        dd.textContent = key === 'month' ? monthLabel(r[key]) : esc((VALUES[key] && VALUES[key][r[key]]) || r[key]);
         if (key === 'objects') dd.style.whiteSpace = 'pre-line';
         dl.append(dt, dd);
       });
