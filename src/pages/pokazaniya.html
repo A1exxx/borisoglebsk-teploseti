@@ -93,27 +93,21 @@ description: Онлайн-форма передачи показаний при�
           </div>
         </fieldset>
 
+        <!-- 07.11.2026: житель передаёт только горячую воду. Отопление в квартире считается по общедомовому счётчику или нормативу,
+             квартирный счётчик тепла в расчёте не участвует — поле «Тепловая энергия» убрано, чтобы не передавать то, что не нужно. -->
         <fieldset data-switch-case="person">
-          <legend>Показания</legend>
-          <span class="hint">Заполните то, что относится к вашему прибору учёта. Достаточно одного значения.</span>
+          <legend>Показание</legend>
 
-          <div class="field-row field-row--2">
-            <div class="field">
-              <label for="valueHeat">Тепловая энергия, Гкал</label>
-              <input class="control" type="text" id="valueHeat" name="valueHeat" inputmode="decimal"
-                     data-validate="reading" placeholder="12,345" autocomplete="off">
-              <span class="hint">Цифры с табло прибора, вместе с дробной частью</span>
-              <span class="err" role="alert"></span>
-            </div>
-
-            <div class="field">
-              <label for="valueWater">Горячая вода, м³</label>
-              <input class="control" type="text" id="valueWater" name="valueWater" inputmode="decimal"
-                     data-validate="reading" placeholder="248,600" autocomplete="off">
-              <span class="hint">Показание счётчика горячего водоснабжения</span>
-              <span class="err" role="alert"></span>
-            </div>
+          <div class="field">
+            <label for="valueWater">Горячая вода, м³ <span class="req" aria-hidden="true">*</span></label>
+            <input class="control" type="text" id="valueWater" name="valueWater" inputmode="decimal" required data-req-when="on"
+                   data-validate="reading" placeholder="248,600" autocomplete="off" maxlength="20"
+                   data-msg-required="Укажите показание счётчика горячей воды">
+            <span class="hint">Цифры с табло счётчика горячей воды, вместе с дробной частью</span>
+            <span class="err" role="alert"></span>
           </div>
+
+          <p class="hint">Показания отопления передавать не нужно: отопление считается по общедомовому счётчику или по нормативу.</p>
         </fieldset>
 
         <fieldset data-switch-case="org" hidden>
@@ -154,11 +148,24 @@ description: Онлайн-форма передачи показаний при�
             <span class="err" role="alert"></span>
           </div>
 
+          <!-- 07.11.2026: месяц выбирается явно — иначе программа кладёт объём в свой рабочий месяц. Варианты подставляет скрипт:
+               текущий и два прошлых; по умолчанию до 10-го числа включительно — прошлый, позже — текущий. -->
+          <div class="field">
+            <label for="month">За какой месяц <span class="req" aria-hidden="true">*</span></label>
+            <select class="control" id="month" name="month" data-req-when="on" data-month-select
+                    data-msg-required="Выберите месяц, за который передаёте показания">
+              <option value="">Выберите месяц</option>
+            </select>
+            <span class="hint">Месяц, за который сняты показания и посчитан объём</span>
+            <span class="err" role="alert"></span>
+          </div>
+
           <div class="field">
             <label for="volumeHeat">Объём тепла за месяц, Гкал</label>
             <input class="control" type="text" id="volumeHeat" name="volumeHeat" inputmode="decimal" maxlength="20"
                    data-validate="volume" placeholder="12,345" autocomplete="off">
-            <span class="hint">Необязательно. Если уже посчитали расход за месяц по всем объектам договора — впишите его</span>
+            <span class="hint">Необязательно. Общий объём по договору за месяц. Если объектов несколько, абонентский отдел разнесёт его сам;
+              объёмы по каждому объекту можно указать в списке объектов выше</span>
             <span class="err" role="alert"></span>
           </div>
         </fieldset>
