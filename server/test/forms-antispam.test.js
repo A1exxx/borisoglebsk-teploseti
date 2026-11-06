@@ -306,12 +306,14 @@ test('проверка полей показаний: лицевой счёт, �
     [{ account: '12a45' }, 'account', /только цифры, от 5 до 12/],
     [{ account: '1234' }, 'account', /от 5 до 12/],
     [{ account: '1234567890123' }, 'account', /от 5 до 12/],
-    [{ valueWater: '', valueHeat: '' }, 'valueHeat', /хотя бы одно показание/],
+    // 07.11.2026: житель передаёт только горячую воду — без неё заявка не принимается, даже если старая страница прислала тепло
+    [{ valueWater: '', valueHeat: '' }, 'valueWater', /Укажите показание счётчика горячей воды/],
+    [{ valueWater: '', valueHeat: '5,5' }, 'valueWater', /Укажите показание счётчика горячей воды/],
     [{ valueWater: '12,3456' }, 'valueWater', /не больше трёх цифр после запятой/],
     [{ valueWater: '-5' }, 'valueWater', /цифрами/],
     [{ valueWater: '1e5' }, 'valueWater', /цифрами/],
-    [{ valueHeat: '1000000' }, 'valueHeat', /больше 999 999/],
-    [{ valueHeat: '999999,001' }, 'valueHeat', /больше 999 999/],
+    [{ valueWater: '1000000' }, 'valueWater', /больше 999 999/],
+    [{ valueWater: '999999,001' }, 'valueWater', /больше 999 999/],
     [{ consent: '' }, 'consent', /согласия/],
   ];
   for (const [fields, field, message] of cases) {
@@ -320,11 +322,15 @@ test('проверка полей показаний: лицевой счёт, �
     assert.match(res.body.errors[field] || '', message, JSON.stringify(fields));
   }
   // граничные верные значения: 5 и 12 цифр, ноль, 999999, пробелы в номере счёта
-  for (const fields of [{ account: '12345', valueWater: '0' }, { account: '123456789012', valueHeat: '999999', valueWater: '' }, { account: '700 101', valueWater: '5,125' }]) {
+  for (const fields of [{ account: '12345', valueWater: '0' }, { account: '123456789012', valueWater: '999999' }, { account: '700 101', valueWater: '5,125' }]) {
     const res = await post(site.base, '/api/readings', { ...READING, ...fields, ...(await solved(site.base)) });
     assert.equal(res.status, 200, `${JSON.stringify(fields)}: ${JSON.stringify(res.body)}`);
   }
   assert.equal(readingsInFile(site.dataDir).at(-1).account, '700101');
+  // поле тепла от старой страницы не мешает и не сохраняется
+  const old = await post(site.base, '/api/readings', { ...READING, account: '700102', valueHeat: 'abc', ...(await solved(site.base)) });
+  assert.equal(old.status, 200, JSON.stringify(old.body));
+  assert.equal(readingsInFile(site.dataDir).at(-1).valueHeat, undefined);
 });
 
 /* ---------------- Показания организаций (06.11.2026) ---------------- */
@@ -389,6 +395,43 @@ test('лимит на договор: не больше 3 заявок за су
   assert.match(fourth.body.errors.contractNo, /По этому договору за сутки показания передавали уже 3 раза/);
   const other = await post(site.base, '/api/readings', { ...ORG_READING, contractNo: '22-Л/2026', ...(await solved(site.base)) });
   assert.equal(other.status, 200);
+});
+
+/** Месяц «ГГГГ-ММ» со сдвигом от текущего по Москве — как считает сервер. */
+function monthShift(delta) {
+  const today = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+  const index = Number(today.slice(0, 4)) * 12 + Number(today.slice(5, 7)) - 1 + delta;
+  return { today, month: `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}` };
+}
+
+test('месяц показаний организации: текущий и три прошлых принимаются, будущий и давний — нет; без поля — месяц по умолчанию', async () => {
+  for (const delta of [0, -1, -3]) {
+    const { month } = monthShift(delta);
+    const res = await post(site.base, '/api/readings', { ...ORG_READING, contractNo: `3${-delta}-М/2026`, month, ...(await solved(site.base)) });
+    assert.equal(res.status, 200, `${month}: ${JSON.stringify(res.body)}`);
+    assert.equal(readingsInFile(site.dataDir).at(-1).month, month);
+  }
+  const cases = [
+    [monthShift(1).month, /ещё не наступил/],
+    [monthShift(-4).month, /слишком давний/],
+    ['2026-13', /Выберите месяц/],
+    ['ноябрь', /Выберите месяц/],
+  ];
+  for (const [month, message] of cases) {
+    const res = await post(site.base, '/api/readings', { ...ORG_READING, contractNo: '40-М/2026', month, ...(await solved(site.base)) });
+    assert.equal(res.status, 400, month);
+    assert.match(res.body.errors.month || '', message, month);
+  }
+  // старая страница без поля: до 10-го числа включительно — прошлый месяц, позже — текущий
+  const res = await post(site.base, '/api/readings', { ...ORG_READING, contractNo: '41-М/2026', ...(await solved(site.base)) });
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  const { today } = monthShift(0);
+  const expected = monthShift(Number(today.slice(8, 10)) <= 10 ? -1 : 0).month;
+  assert.equal(readingsInFile(site.dataDir).at(-1).month, expected);
+  // у жителя месяца нет
+  const person = await post(site.base, '/api/readings', { ...READING, account: '700600', month: '2020-01', ...(await solved(site.base)) });
+  assert.equal(person.status, 200, JSON.stringify(person.body));
+  assert.equal(readingsInFile(site.dataDir).at(-1).month, undefined);
 });
 
 /* ---------------- Обращения и договор — тот же механизм ---------------- */
