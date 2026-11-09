@@ -333,7 +333,7 @@
   /* ---------- Телефоны и режим работы ---------- */
   // Значения подставляются сервером в готовые страницы: пересборка не нужна.
   var CONTACT_FIELDS = ['dispatcher', 'reception', 'subscribers', 'accounting',
-                        'email', 'emailDocs', 'hours', 'hoursShort', 'receptionDays', 'max'];
+                        'email', 'emailDocs', 'hours', 'hoursShort', 'receptionDays', 'max', 'maxLink'];
 
   fetch('/api/admin/contacts').then(function (r) { return r.json(); }).then(function (d) {
     CONTACT_FIELDS.forEach(function (key) {

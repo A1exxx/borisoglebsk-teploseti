@@ -578,6 +578,7 @@ function withTicket(html, value) {
 const CONTACT_LINKS = ['dispatcher', 'reception', 'subscribers', 'accounting', 'email', 'emailDocs'];
 // max — номер или ссылка в мессенджере MAX: строка «В мессенджере MAX» на странице «Показания» видна, только когда поле заполнено
 const CONTACT_TEXTS = ['hours', 'hoursShort', 'receptionDays', 'max'];
+const MAX_PROFILE_LINK = /^https:\/\/max\.ru\/\S+$/;
 
 function contactLink(key, raw) {
   const value = String(raw || '').trim();
@@ -605,10 +606,20 @@ function withContacts(html, contacts) {
     );
   }
   const max = String(contacts.max || '').trim();
-  if (max) {
+  const maxLink = String(contacts.maxLink || '').trim();
+  if (max || MAX_PROFILE_LINK.test(maxLink)) {
     out = out.replace(/ data-contact-block="max" style="display:none"/g, ' data-contact-block="max"');
+  }
+  // ссылка на профиль (поле «Ссылка на профиль MAX») — кнопка «Написать в MAX» под номером
+  if (MAX_PROFILE_LINK.test(maxLink)) {
+    out = out.replace(
+      /<a data-contact-maxlink hidden><\/a>/g,
+      () => `<a class="btn btn--brand" style="margin-top:.5rem;align-self:flex-start" href="${escapeHtml(maxLink)}" target="_blank" rel="noopener" data-contact-maxlink>Написать в MAX</a>`,
+    );
+  }
+  if (max) {
     // ссылка вида https://max.ru/… — нажимаемая; номер телефона — текстом (у MAX нет общей ссылки «написать по номеру»)
-    const link = /^https:\/\/max\.ru\/\S+$/.test(max) ? max : null;
+    const link = MAX_PROFILE_LINK.test(max) ? max : null;
     if (link) {
       out = out.replace(
         /<span data-contact-text="max">[\s\S]*?<\/span>/g,
@@ -1249,6 +1260,9 @@ app.post('/api/admin/contacts', express.json({ limit: '64kb' }), async (req, res
     const value = clean(body[key], 160);
     if (value) out[key] = value;
   }
+  // ссылка на профиль MAX принимается только вида https://max.ru/…: другие (веб-версия web.max.ru) у жителей открывают вход по QR-коду
+  const maxLink = clean(body.maxLink, 300);
+  if (MAX_PROFILE_LINK.test(maxLink)) out.maxLink = maxLink;
   await writeContacts(out);
   res.json({ ok: true, saved: Object.keys(out).length });
 });
