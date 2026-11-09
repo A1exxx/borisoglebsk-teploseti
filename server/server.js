@@ -576,7 +576,8 @@ function withTicket(html, value) {
 // телефон, почта) и data-contact-text (режим работы). Здесь подставляем то,
 // что вписали в панели управления.
 const CONTACT_LINKS = ['dispatcher', 'reception', 'subscribers', 'accounting', 'email', 'emailDocs'];
-const CONTACT_TEXTS = ['hours', 'hoursShort', 'receptionDays'];
+// max — номер или ссылка в мессенджере MAX: строка «В мессенджере MAX» на странице «Показания» видна, только когда поле заполнено
+const CONTACT_TEXTS = ['hours', 'hoursShort', 'receptionDays', 'max'];
 
 function contactLink(key, raw) {
   const value = String(raw || '').trim();
@@ -602,6 +603,18 @@ function withContacts(html, contacts) {
       new RegExp(`<span\\b[^>]*data-contact-text="${key}"[^>]*>[\\s\\S]*?</span>`, 'g'),
       () => `<span data-contact-text="${key}">${escapeHtml(value)}</span>`,
     );
+  }
+  const max = String(contacts.max || '').trim();
+  if (max) {
+    out = out.replace(/ data-contact-block="max" style="display:none"/g, ' data-contact-block="max"');
+    // ссылка вида https://max.ru/… — нажимаемая; номер телефона — текстом (у MAX нет общей ссылки «написать по номеру»)
+    const link = /^https:\/\/max\.ru\/\S+$/.test(max) ? max : null;
+    if (link) {
+      out = out.replace(
+        /<span data-contact-text="max">[\s\S]*?<\/span>/g,
+        () => `<a href="${escapeHtml(link)}" target="_blank" rel="noopener" data-contact-text="max">${escapeHtml(link.replace(/^https:\/\//, ''))}</a>`,
+      );
+    }
   }
   return out;
 }

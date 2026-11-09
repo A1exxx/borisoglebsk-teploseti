@@ -376,6 +376,15 @@
             <span class="contact-card__note">Укажите лицевой счёт и адрес, организациям — номер договора</span>
           </div>
         </div>
+        <!-- Строка MAX показывается, когда номер вписан в панели управления (поле «MAX», см. withContacts в server.js) -->
+        <div class="contact-card" data-contact-block="max" style="display:none">
+          <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-message"></use></svg></span>
+          <div class="contact-card__body">
+            <span class="contact-card__label">В мессенджере MAX</span>
+            <span class="contact-card__value" style="font-size:1.05rem"><span data-contact-text="max"></span></span>
+            <span class="contact-card__note">Напишите лицевой счёт, адрес и показания счётчиков, организациям — номер договора</span>
+          </div>
+        </div>
         <div class="contact-card">
           <span class="contact-card__ico"><svg class="ico" aria-hidden="true"><use href="/img/icons.svg#i-building"></use></svg></span>
           <div class="contact-card__body">
